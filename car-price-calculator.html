@@ -1,0 +1,109 @@
+<!doctype html>
+<html lang="zh-Hant">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>汽車價格計算器</title>
+    <link rel="stylesheet" href="./car-price-calculator.css" />
+  </head>
+  <body>
+    <main class="app">
+      <header class="header">
+        <h1>汽車價格計算器</h1>
+        <p class="sub">輸入車價，並可動態新增「扣除項目」與「增加項目」(可自訂名稱)。</p>
+      </header>
+
+      <section class="card">
+        <h2 class="card-title">1) 基礎車價</h2>
+        <div class="field-row">
+          <label for="basePrice">車價</label>
+          <input id="basePrice" type="text" inputmode="decimal" placeholder="例如：215000" value="215000" />
+        </div>
+        <div class="helper">
+          金額支援輸入含逗號（例如 215,000）。小數可保留但預設顯示為整數。
+        </div>
+      </section>
+
+      <section class="grid">
+        <section class="card">
+          <div class="card-head">
+            <h2 class="card-title">2) 扣除項目（會減掉）</h2>
+            <button id="addDeductionBtn" class="btn">新增扣除</button>
+          </div>
+          <table class="list">
+            <thead>
+              <tr>
+                <th style="width: 44%">項目</th>
+                <th style="width: 34%">金額</th>
+                <th style="width: 22%">操作</th>
+              </tr>
+            </thead>
+            <tbody id="deductionTbody"></tbody>
+          </table>
+          <div class="empty-hint" id="deductionEmptyHint">尚未新增扣除項目。</div>
+          <div class="mini-summary">
+            <span>扣除總額：</span>
+            <strong id="deductionTotal">0</strong>
+          </div>
+        </section>
+
+        <section class="card">
+          <div class="card-head">
+            <h2 class="card-title">3) 增加項目（會加上）</h2>
+            <button id="addAdditionBtn" class="btn btn-secondary">新增增加</button>
+          </div>
+          <table class="list">
+            <thead>
+              <tr>
+                <th style="width: 44%">項目</th>
+                <th style="width: 34%">金額</th>
+                <th style="width: 22%">操作</th>
+              </tr>
+            </thead>
+            <tbody id="additionTbody"></tbody>
+          </table>
+          <div class="empty-hint" id="additionEmptyHint">尚未新增增加項目。</div>
+          <div class="mini-summary">
+            <span>增加總額：</span>
+            <strong id="additionTotal">0</strong>
+          </div>
+        </section>
+      </section>
+
+      <section class="card">
+        <h2 class="card-title">4) 計算結果</h2>
+        <div class="result">
+          <div class="result-line">
+            <span>車價 - 扣除總額</span>
+            <strong id="afterDeductions">0</strong>
+          </div>
+          <div class="result-line">
+            <span>+ 增加總額</span>
+            <strong id="afterAdditions">0</strong>
+          </div>
+          <div class="result-line total">
+            <span>合計</span>
+            <strong id="grandTotal">0</strong>
+          </div>
+        </div>
+
+        <div class="breakdown">
+          <h3 class="breakdown-title">明細</h3>
+          <div class="detail" id="detail"></div>
+          <div class="actions">
+            <button id="exportJpgBtn" class="btn btn-secondary" type="button">
+              輸出JPG
+            </button>
+          </div>
+        </div>
+      </section>
+
+      <footer class="footer">
+        提示：可自行新增/移除項目並更改名稱與金額。
+      </footer>
+    </main>
+
+    <script src="./car-price-calculator.js"></script>
+  </body>
+</html>
+
