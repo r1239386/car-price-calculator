@@ -220,7 +220,7 @@
     }
 
     appendDivider();
-    const totalLabel = grand >= 0 ? "應收金額" : "應退金額";
+    const totalLabel = grand >= 0 ? "應收金額" : "應退金額(因貸款金額≥車價)";
     const totalAmount = grand >= 0 ? grand : Math.abs(grand);
     appendTotalRow(totalLabel, formatMoney(totalAmount));
 
