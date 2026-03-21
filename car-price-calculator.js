@@ -25,8 +25,309 @@
   const addDeductionBtn = $("addDeductionBtn");
   const addAdditionBtn = $("addAdditionBtn");
   const exportJpgBtn = $("exportJpgBtn");
+  const printDetailBtn = $("printDetailBtn");
+
+  const openUsedCarTaxModalBtn = $("openUsedCarTaxModalBtn");
+  const openNewCarTaxModalBtn = $("openNewCarTaxModalBtn");
+  const usedCarTaxModal = $("usedCarTaxModal");
+  const usedCarTaxModalTitle = $("usedCarTaxModalTitle");
+  const usedCarTaxGiftBtn = $("usedCarTaxGiftBtn");
+  const usedCarTaxConfirmBtn = $("usedCarTaxConfirmBtn");
+  const uctVehicleType = $("uctVehicleType");
+  const uctFuelType = $("uctFuelType");
+  const uctRange = $("uctRange");
+  const uctStartDate = $("uctStartDate");
+  const uctEndDate = $("uctEndDate");
+  const uctPaymentStatus = $("uctPaymentStatus");
+  const uctPaymentStatusWrap = $("uctPaymentStatusWrap");
 
   const STORAGE_KEY = "carPriceCalculator.v1";
+
+  // 台灣汽車稅金對照表 (年度總額)
+  const TAX_DATA = {
+    passenger: [
+      { range: "500cc以下", license: 1620, fuelGas: 2160, fuelDiesel: 1296 },
+      { range: "501-600cc", license: 2160, fuelGas: 2880, fuelDiesel: 1728 },
+      { range: "601-1200cc", license: 4320, fuelGas: 4320, fuelDiesel: 2592 },
+      { range: "1201-1800cc", license: 7120, fuelGas: 4800, fuelDiesel: 2880 },
+      { range: "1801-2400cc", license: 11230, fuelGas: 6180, fuelDiesel: 3708 },
+      { range: "2401-3000cc", license: 15210, fuelGas: 7200, fuelDiesel: 4320 },
+      { range: "3001-4200cc", license: 28220, fuelGas: 8640, fuelDiesel: 5184 },
+      { range: "4201-5400cc", license: 46170, fuelGas: 9810, fuelDiesel: 5886 },
+      { range: "5401-6600cc", license: 69690, fuelGas: 11220, fuelDiesel: 6732 },
+      { range: "6601-7800cc", license: 117000, fuelGas: 12180, fuelDiesel: 7308 },
+      { range: "7801cc以上", license: 151200, fuelGas: 13080, fuelDiesel: 7848 },
+    ],
+    truck: [
+      { range: "500cc以下", license: 900, fuelGas: 2160, fuelDiesel: 1296 },
+      { range: "501-600cc", license: 1080, fuelGas: 2880, fuelDiesel: 1728 },
+      { range: "601-1200cc", license: 1800, fuelGas: 4320, fuelDiesel: 2592 },
+      { range: "1201-1800cc", license: 2700, fuelGas: 4800, fuelDiesel: 2880 },
+      { range: "1801-2400cc", license: 3600, fuelGas: 7710, fuelDiesel: 4626 },
+      { range: "2401-3000cc", license: 4500, fuelGas: 9900, fuelDiesel: 5940 },
+      { range: "3001-3600cc", license: 5400, fuelGas: 11880, fuelDiesel: 7128 },
+      { range: "3601-4200cc", license: 6300, fuelGas: 13500, fuelDiesel: 8100 },
+      { range: "4201-4800cc", license: 7200, fuelGas: 15420, fuelDiesel: 9252 },
+      { range: "4801-5400cc", license: 8100, fuelGas: 16740, fuelDiesel: 10044 },
+      { range: "5401-6000cc", license: 9000, fuelGas: 18000, fuelDiesel: 10800 },
+    ],
+  };
+
+  function toIsoLocalDate(d) {
+    const y = d.getFullYear();
+    const m = String(d.getMonth() + 1).padStart(2, "0");
+    const day = String(d.getDate()).padStart(2, "0");
+    return `${y}-${m}-${day}`;
+  }
+
+  function isoToMmDd(iso) {
+    const parts = String(iso || "").split("-");
+    if (parts.length !== 3) return "";
+    const [, m, d] = parts;
+    return `${m}/${d}`;
+  }
+
+  function daysInclusiveLocal(isoStart, isoEnd) {
+    const [sy, sm, sd] = isoStart.split("-").map(Number);
+    const [ey, em, ed] = isoEnd.split("-").map(Number);
+    const start = new Date(sy, sm - 1, sd);
+    const end = new Date(ey, em - 1, ed);
+    return Math.floor((end.getTime() - start.getTime()) / 86400000) + 1;
+  }
+
+  function populateUctRangeOptions() {
+    if (!uctVehicleType || !uctRange) return;
+    const key = uctVehicleType.value;
+    const rows = TAX_DATA[key];
+    uctRange.innerHTML = "";
+    rows.forEach((row, i) => {
+      const opt = document.createElement("option");
+      opt.value = String(i);
+      opt.textContent = row.range;
+      uctRange.appendChild(opt);
+    });
+    const defaultIdx = rows.findIndex((r) => r.range === "1201-1800cc");
+    uctRange.selectedIndex = defaultIdx >= 0 ? defaultIdx : 0;
+  }
+
+  let taxModalMode = "old"; // "old" | "new"
+
+  function setCarTaxDefaultDates(mode) {
+    if (!uctStartDate || !uctEndDate) return;
+    const now = new Date();
+    const year = now.getFullYear();
+    const jan1 = new Date(year, 0, 1);
+    const dec31 = new Date(year, 11, 31);
+    if (mode === "old") {
+      uctStartDate.value = toIsoLocalDate(jan1);
+      uctEndDate.value = toIsoLocalDate(now);
+    } else {
+      uctStartDate.value = toIsoLocalDate(now);
+      uctEndDate.value = toIsoLocalDate(dec31);
+    }
+  }
+
+  function openCarTaxModal(mode) {
+    if (!usedCarTaxModal) return;
+    taxModalMode = mode;
+    if (usedCarTaxModalTitle) {
+      usedCarTaxModalTitle.textContent = mode === "old" ? "舊車稅金試算" : "新車稅金試算";
+    }
+    if (usedCarTaxGiftBtn) {
+      usedCarTaxGiftBtn.style.display = "";
+    }
+    if (uctPaymentStatusWrap) {
+      uctPaymentStatusWrap.style.display = mode === "old" ? "" : "none";
+    }
+    setCarTaxDefaultDates(mode);
+    populateUctRangeOptions();
+    usedCarTaxModal.hidden = false;
+    usedCarTaxModal.setAttribute("aria-hidden", "false");
+    document.body.style.overflow = "hidden";
+    if (mode === "old") updateOldCarTaxGiftButton();
+    else if (mode === "new") updateNewCarTaxGiftButton();
+  }
+
+  function closeUsedCarTaxModal() {
+    if (!usedCarTaxModal) return;
+    usedCarTaxModal.hidden = true;
+    usedCarTaxModal.setAttribute("aria-hidden", "true");
+    document.body.style.overflow = "";
+  }
+
+  /** 計算舊車稅金 B、A、Result，僅在 mode=old 時使用 */
+  function calcOldCarTaxResult() {
+    if (!uctStartDate || !uctEndDate || !uctVehicleType || !uctFuelType || !uctRange || !uctPaymentStatus)
+      return null;
+    const endVal = uctEndDate.value;
+    if (!endVal) return null;
+    const year = Number(endVal.split("-")[0]);
+    const jan1Iso = `${year}-01-01`;
+    const days = daysInclusiveLocal(jan1Iso, endVal);
+    if (!Number.isFinite(days) || days < 1) return null;
+    const vKey = uctVehicleType.value;
+    const rowIdx = Number(uctRange.value);
+    const rows = TAX_DATA[vKey];
+    if (!rows || !rows[rowIdx]) return null;
+    const row = rows[rowIdx];
+    const annualFuel = uctFuelType.value === "gas" ? row.fuelGas : row.fuelDiesel;
+    const B = Math.round((row.license / 365) * days) + Math.round((annualFuel / 365) * days);
+    const status = uctPaymentStatus.value;
+    let A = 0;
+    if (status === "license") A = row.license;
+    else if (status === "fuel") A = annualFuel;
+    else if (status === "both") A = row.license + annualFuel;
+    return B - A;
+  }
+
+  function updateOldCarTaxGiftButton() {
+    if (taxModalMode !== "old" || !usedCarTaxGiftBtn) return;
+    const result = calcOldCarTaxResult();
+    usedCarTaxGiftBtn.disabled = result === null || result <= 0;
+  }
+
+  function updateNewCarTaxGiftButton() {
+    if (taxModalMode !== "new" || !usedCarTaxGiftBtn) return;
+    usedCarTaxGiftBtn.disabled = false;
+  }
+
+  function clearOldCarTaxItems() {
+    state.deductions = state.deductions.filter((item) => !String(item.name ?? "").includes("舊車稅金"));
+    state.additions = state.additions.filter((item) => !String(item.name ?? "").includes("舊車稅金"));
+  }
+
+  function clearNewCarTaxItems() {
+    state.deductions = state.deductions.filter(
+      (item) =>
+        !String(item.name ?? "").includes("新車牌照稅") && !String(item.name ?? "").includes("新車燃料費")
+    );
+    state.additions = state.additions.filter(
+      (item) =>
+        !String(item.name ?? "").includes("新車牌照稅") && !String(item.name ?? "").includes("新車燃料費")
+    );
+  }
+
+  function confirmCarTax() {
+    if (taxModalMode === "old") {
+      const result = calcOldCarTaxResult();
+      if (result === null) {
+        alert("請確認已選擇日期、排氣量級距與繳納狀態。");
+        return;
+      }
+      clearOldCarTaxItems();
+      if (result < 0) {
+        const absVal = Math.abs(result);
+        state.deductions.push({
+          id: uid(),
+          name: `舊車稅金溢繳：${absVal}`,
+          amount: absVal,
+        });
+      } else if (result > 0) {
+        state.additions.push({
+          id: uid(),
+          name: `舊車稅金欠繳：${result}`,
+          amount: result,
+        });
+      }
+      renderList("deduction");
+      renderList("addition");
+      closeUsedCarTaxModal();
+      recompute();
+      return;
+    }
+
+    if (!uctStartDate || !uctEndDate || !uctVehicleType || !uctFuelType || !uctRange) return;
+    const startVal = uctStartDate.value;
+    const endVal = uctEndDate.value;
+    if (!startVal || !endVal) {
+      alert("請選擇開始與結束日期。");
+      return;
+    }
+    const days = daysInclusiveLocal(startVal, endVal);
+    if (!Number.isFinite(days) || days < 1) {
+      alert("請選擇有效的日期區間（結束日不可早於開始日）。");
+      return;
+    }
+    const vKey = uctVehicleType.value;
+    const rowIdx = Number(uctRange.value);
+    const rows = TAX_DATA[vKey];
+    if (!rows || !rows[rowIdx]) {
+      alert("請選擇排氣量級距。");
+      return;
+    }
+    const row = rows[rowIdx];
+    const annualFuel = uctFuelType.value === "gas" ? row.fuelGas : row.fuelDiesel;
+    const licenseAmount = Math.round((row.license / 365) * days);
+    const fuelAmount = Math.round((annualFuel / 365) * days);
+    const rangeLabel = `${isoToMmDd(startVal)}~${isoToMmDd(endVal)}`;
+
+    state.additions = state.additions.filter(
+      (item) =>
+        !String(item.name ?? "").includes("新車牌照稅") &&
+        !String(item.name ?? "").includes("新車燃料費")
+    );
+    state.additions.push(
+      { id: uid(), name: `新車牌照稅(${rangeLabel})`, amount: licenseAmount },
+      { id: uid(), name: `新車燃料費(${rangeLabel})`, amount: fuelAmount }
+    );
+    closeUsedCarTaxModal();
+    renderList("addition");
+    recompute();
+  }
+
+  function confirmCarTaxGift() {
+    if (taxModalMode === "old") {
+      const result = calcOldCarTaxResult();
+      if (result === null) {
+        alert("請確認已選擇日期、排氣量級距與繳納狀態。");
+        return;
+      }
+      if (result <= 0) return;
+      clearOldCarTaxItems();
+      state.additions.push({
+        id: uid(),
+        name: `(贈送)舊車稅金欠繳：${result}`,
+        amount: 0,
+      });
+    } else if (taxModalMode === "new") {
+      if (!uctStartDate || !uctEndDate || !uctVehicleType || !uctFuelType || !uctRange) return;
+      const startVal = uctStartDate.value;
+      const endVal = uctEndDate.value;
+      if (!startVal || !endVal) {
+        alert("請選擇開始與結束日期。");
+        return;
+      }
+      const days = daysInclusiveLocal(startVal, endVal);
+      if (!Number.isFinite(days) || days < 1) {
+        alert("請選擇有效的日期區間（結束日不可早於開始日）。");
+        return;
+      }
+      const vKey = uctVehicleType.value;
+      const rowIdx = Number(uctRange.value);
+      const rows = TAX_DATA[vKey];
+      if (!rows || !rows[rowIdx]) {
+        alert("請選擇排氣量級距。");
+        return;
+      }
+      const row = rows[rowIdx];
+      const annualFuel = uctFuelType.value === "gas" ? row.fuelGas : row.fuelDiesel;
+      const licenseAmount = Math.round((row.license / 365) * days);
+      const fuelAmount = Math.round((annualFuel / 365) * days);
+      const rangeLabel = `${isoToMmDd(startVal)}~${isoToMmDd(endVal)}`;
+
+      clearNewCarTaxItems();
+      state.additions.push(
+        { id: uid(), name: `(贈送)新車牌照稅(${rangeLabel})`, amount: 0 },
+        { id: uid(), name: `(贈送)新車燃料費(${rangeLabel})`, amount: 0 }
+      );
+    } else {
+      return;
+    }
+    renderList("deduction");
+    renderList("addition");
+    closeUsedCarTaxModal();
+    recompute();
+  }
 
   const moneyFormatter = new Intl.NumberFormat("zh-TW", {
     maximumFractionDigits: 10,
@@ -310,6 +611,28 @@
   addDeductionBtn.addEventListener("click", () => addItem("deduction"));
   addAdditionBtn.addEventListener("click", () => addItem("addition"));
 
+  if (usedCarTaxModal) {
+    if (openUsedCarTaxModalBtn) openUsedCarTaxModalBtn.addEventListener("click", () => openCarTaxModal("old"));
+    if (openNewCarTaxModalBtn) openNewCarTaxModalBtn.addEventListener("click", () => openCarTaxModal("new"));
+    usedCarTaxModal.querySelectorAll("[data-modal-dismiss]").forEach((el) => {
+      el.addEventListener("click", closeUsedCarTaxModal);
+    });
+    if (usedCarTaxConfirmBtn) usedCarTaxConfirmBtn.addEventListener("click", confirmCarTax);
+    if (usedCarTaxGiftBtn) usedCarTaxGiftBtn.addEventListener("click", confirmCarTaxGift);
+    if (uctVehicleType) {
+      uctVehicleType.addEventListener("change", () => {
+        populateUctRangeOptions();
+        updateOldCarTaxGiftButton();
+      });
+    }
+    [uctEndDate, uctFuelType, uctRange, uctPaymentStatus].forEach((el) => {
+      if (el) el.addEventListener("change", updateOldCarTaxGiftButton);
+    });
+    document.addEventListener("keydown", (e) => {
+      if (e.key === "Escape" && usedCarTaxModal && !usedCarTaxModal.hidden) closeUsedCarTaxModal();
+    });
+  }
+
   function init() {
     load();
     basePriceInput.value = String(state.basePrice);
@@ -481,7 +804,13 @@ async function exportDetailAsJpg() {
     }
   }
 
+  function printDetail() {
+    recompute();
+    window.print();
+  }
+
   init();
   if (exportJpgBtn) exportJpgBtn.addEventListener("click", exportDetailAsJpg);
+  if (printDetailBtn) printDetailBtn.addEventListener("click", printDetail);
 })();
 

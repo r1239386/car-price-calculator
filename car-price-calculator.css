@@ -74,6 +74,14 @@ body {
   justify-content: space-between;
   gap: 10px;
   margin-bottom: 8px;
+  flex-wrap: wrap;
+}
+
+.card-head-btns {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  justify-content: flex-end;
 }
 
 .field-row {
@@ -89,17 +97,22 @@ label {
 }
 
 input[type="text"],
-input[type="number"] {
+input[type="number"],
+input[type="date"],
+select {
   width: 100%;
   padding: 10px 12px;
   border-radius: 10px;
   border: 1px solid var(--border);
   outline: none;
   background: #fff;
+  font: inherit;
 }
 
 input[type="text"]:focus,
-input[type="number"]:focus {
+input[type="number"]:focus,
+input[type="date"]:focus,
+select:focus {
   border-color: rgba(79, 70, 229, 0.5);
   box-shadow: 0 0 0 4px rgba(79, 70, 229, 0.12);
 }
@@ -131,6 +144,54 @@ input[type="number"]:focus {
 
 .btn-secondary:hover {
   background: #f3f4ff;
+}
+
+.btn-tax-old {
+  background: #e5e7eb;
+  color: var(--text);
+  border: 1px solid rgba(0, 0, 0, 0.1);
+}
+
+.btn-tax-old:hover {
+  background: #d1d5db;
+}
+
+.btn-tax-new {
+  background: #3b82f6;
+  color: #fff;
+  border: 1px solid #2563eb;
+}
+
+.btn-tax-new:hover {
+  background: #2563eb;
+}
+
+.btn-gift {
+  background: #ef4444;
+  color: #fff;
+  border: 1px solid #dc2626;
+}
+
+.btn-gift:hover {
+  background: #dc2626;
+}
+
+.btn-gift:disabled {
+  background: #9ca3af;
+  border-color: #9ca3af;
+  cursor: not-allowed;
+  opacity: 0.8;
+}
+
+/* 列印明細按鈕：深灰色/紫色風格，與輸出JPG區分 */
+.btn-print {
+  background: #5b4a7a;
+  color: #fff;
+  border: 1px solid rgba(91, 74, 122, 0.5);
+}
+
+.btn-print:hover {
+  background: #4a3d63;
 }
 
 .list {
@@ -307,5 +368,215 @@ input[type="number"]:focus {
 .remove-btn:hover {
   background: rgba(239, 68, 68, 0.06);
   border-color: rgba(239, 68, 68, 0.55);
+}
+
+/* Modal — 舊車稅金試算 */
+.modal {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+}
+
+.modal[hidden] {
+  display: none;
+}
+
+.modal-backdrop {
+  position: absolute;
+  inset: 0;
+  background: rgba(15, 23, 42, 0.45);
+  backdrop-filter: blur(2px);
+}
+
+.modal-panel {
+  position: relative;
+  z-index: 1;
+  width: min(440px, 100%);
+  max-height: min(90vh, 640px);
+  overflow: auto;
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  box-shadow: 0 24px 48px rgba(16, 24, 40, 0.18);
+  padding: 18px 18px 16px;
+}
+
+.modal-title {
+  margin: 0 0 14px;
+  font-size: 18px;
+  letter-spacing: 0.2px;
+}
+
+.modal-body {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.modal-field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.modal-field > label {
+  font-size: 13px;
+}
+
+.modal-field-row {
+  flex-direction: row;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.modal-field-row > div {
+  flex: 1 1 140px;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.modal-actions {
+  margin-top: 16px;
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 10px;
+}
+
+@media (max-width: 640px) {
+  .modal-panel {
+    width: 92vw;
+    max-width: none;
+  }
+
+  .card-head-btns {
+    width: 100%;
+  }
+
+  .card-head-btns .btn {
+    flex: 1 1 auto;
+    min-width: 0;
+  }
+
+  /* 手機上按鈕排列整齊 */
+  .actions {
+    flex-wrap: wrap;
+  }
+
+  .actions .btn {
+    flex: 1 1 auto;
+    min-width: 0;
+  }
+}
+
+/* ========== 列印樣式 @media print ========== */
+@media print {
+  /* 隱藏無關元素 */
+  .header,
+  .footer,
+  .modal,
+  main.app > .card:nth-child(2),
+  main.app > .grid,
+  .card .card-title,
+  .card .result,
+  .breakdown .actions,
+  .field-row,
+  .helper,
+  .card-head,
+  .list,
+  .empty-hint,
+  .mini-summary,
+  .remove-btn,
+  input,
+  select,
+  button {
+    display: none !important;
+    visibility: hidden !important;
+  }
+
+  /* 僅顯示明細區塊 */
+  body,
+  html {
+    background: #fff !important;
+    margin: 0;
+    padding: 0;
+  }
+
+  .app {
+    max-width: 100%;
+    margin: 0;
+    padding: 12px;
+  }
+
+  .card {
+    background: #fff !important;
+    border: none !important;
+    box-shadow: none !important;
+    border-radius: 0;
+    padding: 0;
+  }
+
+  .breakdown {
+    display: block !important;
+    visibility: visible !important;
+    margin: 0;
+  }
+
+  .breakdown-title {
+    display: block !important;
+    visibility: visible !important;
+    font-size: 18px;
+    margin: 0 0 12px;
+    color: #1f2330;
+  }
+
+  .detail {
+    display: block !important;
+    visibility: visible !important;
+    border-top: 1px solid #333;
+    padding-top: 12px;
+    font-size: 14px;
+  }
+
+  .detail-row,
+  .detail-total-row {
+    display: flex !important;
+    visibility: visible !important;
+  }
+
+  .detail-group-title,
+  .detail-divider {
+    display: block !important;
+    visibility: visible !important;
+  }
+
+  .detail-divider {
+    height: 1px;
+    background: #333;
+    margin: 8px 0;
+  }
+
+  .detail-label,
+  .detail-amount {
+    visibility: visible !important;
+    color: #1f2330 !important;
+  }
+
+  .detail-total-row {
+    margin-top: 12px;
+    padding-top: 12px;
+    border-top: 2px solid #1f2330 !important;
+    font-size: 16px;
+  }
+
+  .detail-total-row .detail-amount {
+    font-size: 18px;
+  }
 }
 
