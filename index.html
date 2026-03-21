@@ -28,7 +28,7 @@
         <section class="card">
           <div class="card-head">
             <h2 class="card-title">2) 扣除項目（會減掉）</h2>
-            <button id="addDeductionBtn" class="btn">新增扣除</button>
+            <button id="addDeductionBtn" type="button" class="btn">新增"扣除"</button>
           </div>
           <table class="list">
             <thead>
@@ -50,7 +50,15 @@
         <section class="card">
           <div class="card-head">
             <h2 class="card-title">3) 增加項目（會加上）</h2>
-            <button id="addAdditionBtn" class="btn btn-secondary">新增增加</button>
+            <div class="card-head-btns">
+              <button id="addAdditionBtn" type="button" class="btn btn-secondary">新增"增加"</button>
+              <button id="openUsedCarTaxModalBtn" type="button" class="btn btn-tax-old">
+                舊車稅金試算
+              </button>
+              <button id="openNewCarTaxModalBtn" type="button" class="btn btn-tax-new">
+                新車稅金試算
+              </button>
+            </div>
           </div>
           <table class="list">
             <thead>
@@ -94,6 +102,9 @@
             <button id="exportJpgBtn" class="btn btn-secondary" type="button">
               輸出JPG
             </button>
+            <button id="printDetailBtn" class="btn btn-print" type="button">
+              列印明細
+            </button>
           </div>
         </div>
       </section>
@@ -102,6 +113,65 @@
         提示：可自行新增/移除項目並更改名稱與金額。
       </footer>
     </main>
+
+    <div
+      id="usedCarTaxModal"
+      class="modal"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="usedCarTaxModalTitle"
+      hidden
+    >
+      <div class="modal-backdrop" data-modal-dismiss tabindex="-1"></div>
+      <div class="modal-panel">
+        <h3 id="usedCarTaxModalTitle" class="modal-title">稅金試算</h3>
+        <div class="modal-body">
+          <div class="modal-field">
+            <label for="uctVehicleType">車種類別</label>
+            <select id="uctVehicleType">
+              <option value="passenger">自用小客車</option>
+              <option value="truck">自用小貨車</option>
+            </select>
+          </div>
+          <div class="modal-field">
+            <label for="uctFuelType">燃油種類</label>
+            <select id="uctFuelType">
+              <option value="gas">汽油</option>
+              <option value="diesel">柴油</option>
+            </select>
+          </div>
+          <div class="modal-field">
+            <label for="uctRange">排氣量級距</label>
+            <select id="uctRange"></select>
+          </div>
+          <div class="modal-field modal-field-row">
+            <div>
+              <label for="uctStartDate">開始日期</label>
+              <input id="uctStartDate" type="date" />
+            </div>
+            <div>
+              <label for="uctEndDate">結束日期</label>
+              <input id="uctEndDate" type="date" />
+            </div>
+          </div>
+          <div class="modal-field uct-old-only" id="uctPaymentStatusWrap" style="display: none;">
+            <label for="uctPaymentStatus">舊車稅金繳納狀態</label>
+            <select id="uctPaymentStatus">
+              <option value="none">都沒繳</option>
+              <option value="license">只繳牌照稅</option>
+              <option value="fuel">只繳燃料費(忘記繳牌照稅或免稅車)</option>
+              <option value="both">牌照稅、燃料費都已繳</option>
+            </select>
+          </div>
+        </div>
+        <div class="modal-actions">
+          <button type="button" id="usedCarTaxGiftBtn" class="btn btn-gift">
+            贈送
+          </button>
+          <button type="button" id="usedCarTaxConfirmBtn" class="btn">確定</button>
+        </div>
+      </div>
+    </div>
 
     <script src="./car-price-calculator.js"></script>
   </body>
