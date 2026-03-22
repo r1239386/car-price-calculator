@@ -780,3 +780,140 @@ select:focus {
     font-size: 16px;
   }
 }
+
+/* 行照辨識結果區塊樣式 */
+.reg-info-box {
+  margin-top: 16px;
+  padding: 12px 16px;
+  background: #f8fafc;
+  border: 1px dashed rgba(79, 70, 229, 0.4);
+  border-radius: 10px;
+}
+.reg-info-title {
+  font-weight: 700;
+  font-size: 13px;
+  margin-bottom: 10px;
+  color: var(--primary);
+}
+.reg-info-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
+  gap: 12px;
+}
+.reg-info-item {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.reg-info-label {
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 600;
+}
+.reg-info-value {
+  font-weight: 700;
+  color: var(--text);
+  font-size: 14px;
+}
+
+/* 可編輯的行照資訊輸入框 */
+.reg-info-value-input {
+  font-weight: 700;
+  color: var(--text);
+  font-size: 14px;
+  border: 1px solid transparent; /* 平常隱藏邊框 */
+  border-radius: 4px;
+  padding: 4px 6px;
+  margin-left: -6px; /* 抵銷 padding 帶來的位移 */
+  background: transparent;
+  width: 100%;
+  outline: none;
+  transition: all 0.2s;
+  font-family: inherit;
+}
+
+/* 當滑鼠游標點進去準備修改時的樣式 */
+.reg-info-value-input:focus {
+  border-color: rgba(79, 70, 229, 0.4);
+  background: #fff;
+  box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.1);
+}
+
+/* 辨識失敗時的紅色警告樣式 */
+.reg-info-value-input.error-text {
+  color: var(--danger);
+}
+/* ==========================================
+   📱 手機版專屬優化 (寬度小於 480px 觸發)
+   ========================================== */
+@media (max-width: 480px) {
+  /* 1. 縮小頂部大標題，省下寶貴的螢幕空間 */
+  .header h1 {
+    font-size: 22px;
+  }
+  .app {
+    margin-top: 16px;
+  }
+
+  /* 2. 讓「上傳行照」按鈕變成滿版寬度，單手大拇指更好按 */
+  .card-head {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+  #uploadRegBtn {
+    width: 100%;
+    margin-top: 10px;
+    padding: 12px;
+    font-size: 15px;
+    font-weight: 800;
+  }
+
+  /* 3. 拯救被擠壓的明細表格：減少內邊距，把空間還給輸入框 */
+  .list th, 
+  .list td {
+    padding: 8px 2px; /* 左右 padding 縮到最小 */
+  }
+  .list input[type="text"] {
+    padding: 10px 6px;
+    font-size: 14px;
+  }
+  
+  /* 移除按鈕也改成滿版，避免點不到 */
+  .remove-btn {
+    width: 100%;
+    padding: 10px 0;
+    font-size: 13px;
+  }
+
+  /* 4. 行照資訊顯示區：強制變成漂亮的兩排對齊，不再亂跳 */
+  .reg-info-grid {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 10px 8px;
+  }
+  .reg-info-value-input {
+    font-size: 15px;
+    padding: 6px 4px;
+  }
+
+  /* 5. 總計區塊：把字體稍微放大，讓結帳總金額更醒目 */
+  .result-line strong {
+    font-size: 20px;
+  }
+  .result-line.total strong {
+    font-size: 24px;
+    color: #4f46e5;
+  }
+
+  /* 6. 計算結果的底部按鈕：並排顯示，各自佔一半 */
+  .breakdown .actions {
+    flex-direction: row;
+    justify-content: space-between;
+    gap: 10px;
+  }
+  .breakdown .actions .btn {
+    flex: 1;
+    text-align: center;
+    padding: 12px 0;
+    font-size: 15px;
+  }
+}

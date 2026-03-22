@@ -127,10 +127,10 @@
   /** * 取得增加項目類別權重
    * 1 (過戶類)：過戶、領牌、選牌、代刻印章
    * 2 (稅金類)：稅金
-   * 2 (保險類)：強制險、第三責任險
-   * 3 (貸款類)：貸款、動保
-   * 4 (常用配件)：行車記錄器、安卓機、避光墊、腳踏墊、胎壓偵測器、隔熱紙
-   * 5 (其他)：其餘
+   * 3 (保險類)：強制險、第三責任險
+   * 4 (貸款類)：貸款、動保
+   * 5 (常用配件)：行車記錄器、安卓機、避光墊、腳踏墊、胎壓偵測器、隔熱紙
+   * 6 (其他)：其餘
    */
   function getAdditionWeight(name) {
     const n = String(name ?? "").trim();
@@ -212,7 +212,68 @@
   }
 
   let taxModalMode = "old"; // "old" | "new"
+  
+  // 👈 新增 1：用來儲存最新一次 OCR 辨識結果的變數
+  let latestOcrData = null; 
 
+  // 👈 新增 2：負責將 OCR 資料轉換為新車稅金選單的邏輯
+  function applyOcrToNewCarTax() {
+    if (!latestOcrData) return;
+
+    // 1. 判斷車種類別
+    const typeRaw = latestOcrData["車種"] || "";
+    if (typeRaw.includes("客車") || typeRaw.includes("客貨")) {
+      uctVehicleType.value = "passenger";
+    } else if (typeRaw.includes("貨車")) {
+      uctVehicleType.value = "truck";
+    }
+
+    // ★ 車種改變後，必須重新生成對應的排氣量下拉選單
+    populateUctRangeOptions();
+
+    // 2. 判斷燃油種類
+    const fuelRaw = latestOcrData["燃料種類"] || "";
+    if (fuelRaw.includes("汽油") || fuelRaw.includes("油電") || fuelRaw.includes("油(電)")) {
+      uctFuelType.value = "gas";
+    } else if (fuelRaw.includes("柴油")) {
+      uctFuelType.value = "diesel";
+    }
+
+    // 3. 判斷排氣量級距
+    const ccRaw = latestOcrData["排氣量"] || "";
+    const ccMatch = ccRaw.match(/\d+/); // 只抓出數字部分，例如 "1598 cc" -> 1598
+    
+    if (ccMatch) {
+      const ccNum = parseInt(ccMatch[0], 10);
+      const ranges = TAX_DATA[uctVehicleType.value]; // 取得目前車種的稅金級距表
+      
+      // 找出這個 cc 數落在哪個級距區間
+      const targetIdx = ranges.findIndex(r => {
+        if (r.range.includes("以下")) {
+          const max = parseInt(r.range.match(/\d+/)[0], 10);
+          return ccNum <= max;
+        } else if (r.range.includes("以上")) {
+          const min = parseInt(r.range.match(/\d+/)[0], 10);
+          return ccNum >= min;
+        } else {
+          // 處理 "1201-1800cc" 這種格式
+          const parts = r.range.match(/(\d+)-(\d+)/);
+          if (parts) {
+            const min = parseInt(parts[1], 10);
+            const max = parseInt(parts[2], 10);
+            return ccNum >= min && ccNum <= max;
+          }
+        }
+        return false;
+      });
+
+      // 如果有找到對應的級距，就自動選取
+      if (targetIdx !== -1) {
+        uctRange.value = String(targetIdx);
+      }
+    }
+  }
+  
   function setCarTaxDefaultDates(mode) {
     if (!uctStartDate || !uctEndDate) return;
     const now = new Date();
@@ -242,6 +303,12 @@
     }
     setCarTaxDefaultDates(mode);
     populateUctRangeOptions();
+
+    // 👈 新增：只有在「新車稅金模式」且「有 OCR 資料」時才自動代入
+    if (mode === "new" && latestOcrData) {
+      applyOcrToNewCarTax();
+    }
+
     usedCarTaxModal.hidden = false;
     usedCarTaxModal.setAttribute("aria-hidden", "false");
     document.body.style.overflow = "hidden";
@@ -410,21 +477,23 @@ function updateOldCarTaxGiftButton() {
     usedCarTaxGiftBtn.disabled = false;
   }
 
-  function clearOldCarTaxItems() {
-    state.deductions = state.deductions.filter((item) => !String(item.name ?? "").includes("舊車稅金"));
-    state.additions = state.additions.filter((item) => !String(item.name ?? "").includes("舊車稅金"));
-  }
+// ✅ 通用函式：過濾掉名稱含有任一 keyword 的項目
+	function clearTaxItems(...keywords) {
+	  const shouldRemove = (item) =>
+		keywords.some((kw) => String(item.name ?? "").includes(kw));
+	  state.deductions = state.deductions.filter((item) => !shouldRemove(item));
+	  state.additions  = state.additions.filter((item) => !shouldRemove(item));
+	}
 
-  function clearNewCarTaxItems() {
-    state.deductions = state.deductions.filter(
-      (item) =>
-        !String(item.name ?? "").includes("新車牌照稅") && !String(item.name ?? "").includes("新車燃料費")
-    );
-    state.additions = state.additions.filter(
-      (item) =>
-        !String(item.name ?? "").includes("新車牌照稅") && !String(item.name ?? "").includes("新車燃料費")
-    );
-  }
+	// ✅ 原本兩個函式保留名稱，改為呼叫通用函式
+	// 這樣其他地方的呼叫點（confirmCarTax、confirmCarTaxGift）完全不需要改
+	function clearOldCarTaxItems() {
+	  clearTaxItems("舊車稅金");
+	}
+
+	function clearNewCarTaxItems() {
+	  clearTaxItems("新車牌照稅", "新車燃料費");
+	}
 
 function confirmCarTax() {
     if (taxModalMode === "old") {
@@ -490,11 +559,7 @@ function confirmCarTax() {
     const fuelAmount = Math.floor((annualFuel * fuelDays) / 360);
     const rangeLabel = `${isoToMmDd(startVal)}~${isoToMmDd(endVal)}`;
 
-    state.additions = state.additions.filter(
-      (item) =>
-        !String(item.name ?? "").includes("新車牌照稅") &&
-        !String(item.name ?? "").includes("新車燃料費")
-    );
+    clearNewCarTaxItems();
     state.additions.push(
 		{ id: uid(), name: `新車牌照稅(${rangeLabel})`, amount: licenseAmount },
 		{ id: uid(), name: `新車燃料費(${rangeLabel})`, amount: fuelAmount }
@@ -639,21 +704,12 @@ function confirmCarTaxGift() {
     return items.reduce((acc, it) => acc + (Number(it.amount) || 0), 0);
   }
 
-  function recompute() {
-    const base = Number(state.basePrice) || 0;
-    const deductionSum = calcSum(state.deductions);
-    const additionSum = calcSum(state.additions);
-
-    const afterDed = base - deductionSum;
-    const grand = afterDed + additionSum;
-
-    deductionTotalEl.textContent = formatMoney(deductionSum);
-    additionTotalEl.textContent = formatMoney(additionSum);
-    afterDeductionsEl.textContent = formatMoney(afterDed);
-    afterAdditionsEl.textContent = formatMoney(additionSum);
-    grandTotalEl.textContent = formatMoney(grand);
-
-    function renderSignedAmount(kind, amt) {
+	/*原本在recompute()裡面的五個函數
+	renderSignedAmount、appendGroupTitle、appendDivider、appendRow、appendTotalRow
+	拉到原本在recompute外面
+	*/
+	
+	function renderSignedAmount(kind, amt) {
       const a = Number(amt) || 0;
       const abs = Math.abs(a) || 0;
       if (kind === "deduction") {
@@ -706,6 +762,21 @@ function confirmCarTaxGift() {
       row.appendChild(right);
       detailEl.appendChild(row);
     }
+  function recompute() {
+    const base = Number(state.basePrice) || 0;
+    const deductionSum = calcSum(state.deductions);
+    const additionSum = calcSum(state.additions);
+
+    const afterDed = base - deductionSum;
+    const grand = afterDed + additionSum;
+
+    deductionTotalEl.textContent = formatMoney(deductionSum);
+    additionTotalEl.textContent = formatMoney(additionSum);
+    afterDeductionsEl.textContent = formatMoney(afterDed);
+    afterAdditionsEl.textContent = formatMoney(additionSum);
+    grandTotalEl.textContent = formatMoney(grand);
+
+    
 
     detailEl.innerHTML = "";
     appendRow("車價", formatMoney(base));
@@ -1171,11 +1242,200 @@ function confirmCarTaxGift() {
       renderList("addition");
       recompute();
     } else {
-      alert("目前清單中沒有符合「辦到好」條件的項目 (例如：新車稅金、代刻印章、過戶、領牌、強制險)。");
+      alert("目前清單中沒有符合「辦到好」條件的項目 (例如：新車牌照稅、代刻印章、過戶、領牌、強制險)。");
     }
   }
 
   if (makeAllInclusiveBtn) makeAllInclusiveBtn.addEventListener("click", applyAllInclusive);
+  
+  // ==========================================
+  // Google Cloud Vision API 辨識邏輯
+  // ==========================================
+  const uploadRegInput = $("uploadRegInput");
+  const uploadRegBtn = $("uploadRegBtn");
+  const regInfoBox = $("regInfoBox");
+  const regInfoGrid = $("regInfoGrid");
+
+  // ⚠️ 將你剛才複製的 API 金鑰貼到這裡
+  const GOOGLE_VISION_API_KEY = "AIzaSyANbobFiUJjqmByVhCNiTvmeb8sQIf_smU"; 
+
+  if (uploadRegBtn && uploadRegInput) {
+    uploadRegBtn.addEventListener("click", () => {
+      uploadRegInput.click();
+    });
+
+    uploadRegInput.addEventListener("change", async (e) => {
+      const file = e.target.files[0];
+      if (!file) return;
+
+      const originalText = uploadRegBtn.textContent;
+      uploadRegBtn.disabled = true;
+      uploadRegBtn.textContent = "🚀 雲端 AI 辨識中...";
+      regInfoBox.style.display = "none";
+
+      try {
+        // 1. 將圖片轉為 Base64 格式
+        const base64Image = await fileToBase64(file);
+        // 移除 Base64 字串開頭的 data:image/jpeg;base64,
+        const base64Data = base64Image.split(',')[1];
+
+        // 2. 準備打給 Google Vision 的資料格式
+        const requestBody = {
+          requests: [
+            {
+              image: { content: base64Data },
+              features: [{ type: "TEXT_DETECTION" }]
+            }
+          ]
+        };
+
+        // 3. 發送請求至 Google Cloud Vision
+        const response = await fetch(`https://vision.googleapis.com/v1/images:annotate?key=${GOOGLE_VISION_API_KEY}`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(requestBody)
+        });
+
+        const data = await response.json();
+
+        // 4. 確認是否有辨識出文字
+        if (!data.responses || !data.responses[0].textAnnotations) {
+          throw new Error("圖片中找不到文字");
+        }
+
+        // 取得完整辨識文字 (textAnnotations[0].description 包含完整段落)
+        const fullText = data.responses[0].textAnnotations[0].description;
+        console.log("Google Vision 辨識結果：", fullText);
+
+        // 5. 解析與渲染 (沿用原本的正則表達式函式)
+        const parsedData = parseRegistrationText(fullText);
+        
+        // 👈 新增：把陣列資料轉換成 Object，存進我們剛才宣告的變數裡
+        latestOcrData = {};
+        parsedData.forEach(item => {
+          latestOcrData[item.label] = item.value;
+        });
+
+        renderRegInfo(parsedData);
+
+      } catch (err) {
+        alert("行照辨識失敗，請檢查網路連線或 API 金鑰是否正確。\n錯誤訊息: " + err.message);
+      } finally {
+        uploadRegBtn.disabled = false;
+        uploadRegBtn.textContent = originalText;
+        uploadRegInput.value = ""; 
+      }
+    });
+  }
+
+  // 輔助函式：將圖片檔案轉為 Base64
+  function fileToBase64(file) {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.readAsDataURL(file);
+      reader.onload = () => resolve(reader.result);
+      reader.onerror = error => reject(error);
+    });
+  }
+
+  // 透過正則表達式找出關鍵字 (終極防禦版：針對 AI 橫向讀取與標點符號優化)
+  function parseRegistrationText(text) {
+    const cleanText = text.replace(/\s+/g, ''); 
+    console.log("清理後的 OCR 文字：", cleanText); // 如果又抓錯，可以在開發者工具看這行抓病因
+
+    // 1. 牌照號碼
+    const plateMatch = cleanText.match(/[A-Z0-9]{2,4}[-_\.][A-Z0-9]{2,4}/);
+    
+    // 2. 車種
+    const typeMatch = cleanText.match(/(自用小客貨|自用小客車|自用小貨車|營業小客車|客貨兩用|營業小貨車)/);
+    
+    // 3. 車主姓名: 
+    // 防禦機制：加入所有台灣「縣市開頭」以及「右半邊欄位名稱」作為阻斷點
+    // 這樣就算 AI 橫著讀成「車主黃定淞臺南市...」或「車主黃定淞原發照...」，也能精準切斷
+    let ownerName = "手動確認";
+    const ownerMatch = cleanText.match(/(?:車主|主)[:：]?([\u4e00-\u9fa5]{2,4}?)(?:地址|地|址|原發|原|變更|邊緣|臺|台|新|桃|中|南|高|基|嘉|屏|宜|花|東|澎|連|金)/) || 
+                       cleanText.match(/(?:車主|主)[:：]?([\u4e00-\u9fa5]{2,3})/);
+    if (ownerMatch) ownerName = ownerMatch[1];
+    
+    // 4. 廠牌:
+    // 防禦機制：一樣加入右側欄位（原發、有效）作為斷句標準
+    let brandName = "手動確認";
+    const brandMatch = cleanText.match(/(?:廠牌|牌)[:：]?([\u4e00-\u9fa5A-Za-z]{1,6}?)(?:出廠|出|型式|型|原發|有效|排氣)/) || 
+                       cleanText.match(/(?:廠牌|牌)[:：]?([\u4e00-\u9fa5A-Za-z]{1,4})/);
+    if (brandMatch) brandName = brandMatch[1];
+    
+    // 5. 出廠年月
+    const dateMatch = cleanText.match(/(19|20)\d{2}[\.\-]\d{2}/);
+    
+    // 6. 排氣量
+    let ccValue = "手動確認";
+    const ccMatch = cleanText.match(/(?:排氣量|氣量|量|cc|c\.c).*?(\d{3,4})/);
+    if (ccMatch) ccValue = ccMatch[1] + " cc";
+    
+    // 7. 燃料種類
+    const fuelMatch = cleanText.match(/(汽油|柴油|電能|電動|油電)/);
+    
+    // 8. 顏色: 
+    // 防禦機制：過濾掉冒號(:或：)，並且嚴格規定只能抓中文字，避開英數與標點符號
+    let colorValue = "手動確認";
+    const colorMatch = cleanText.match(/(?:顏色|色)[:：]?([\u4e00-\u9fa5]{1,2})/);
+    if (colorMatch) colorValue = colorMatch[1];
+
+    return [
+      { label: "牌照號碼", value: plateMatch ? plateMatch[0].replace(/[_.]/g, '-') : "手動確認" },
+      { label: "車主姓名", value: ownerName },
+      { label: "廠牌", value: brandName },
+      { label: "出廠年月", value: dateMatch ? dateMatch[0].replace('-', '.') : "手動確認" },
+      { label: "排氣量", value: ccValue },
+      { label: "燃料種類", value: fuelMatch ? fuelMatch[1] : "手動確認" },
+      { label: "顏色", value: colorValue },
+      { label: "車種", value: typeMatch ? typeMatch[1] : "手動確認" }
+    ];
+  }
+
+  // 渲染資料到 HTML (可編輯連動版)
+  function renderRegInfo(data) {
+    regInfoGrid.innerHTML = "";
+    data.forEach(item => {
+      const div = document.createElement("div");
+      div.className = "reg-info-item";
+      
+      const label = document.createElement("span");
+      label.className = "reg-info-label";
+      label.textContent = item.label;
+      
+      // 將原本的 span 改成 input，讓你可以直接修改
+      const valueInput = document.createElement("input");
+      valueInput.type = "text";
+      valueInput.className = "reg-info-value-input";
+      valueInput.value = item.value;
+
+      // 貼心設計：如果是「手動確認」，點擊時自動清空，方便直接輸入
+      if (item.value === "手動確認") {
+        valueInput.classList.add("error-text");
+        valueInput.addEventListener("focus", function() {
+          if (this.value === "手動確認") {
+            this.value = "";
+            this.classList.remove("error-text");
+            this.style.color = "var(--text)";
+          }
+        });
+      }
+
+      // ★ 最關鍵的一步：當你手動修改內容時，同步更新底層的 latestOcrData
+      valueInput.addEventListener("input", (e) => {
+        if (latestOcrData) {
+          latestOcrData[item.label] = e.target.value;
+        }
+      });
+
+      div.appendChild(label);
+      div.appendChild(valueInput);
+      regInfoGrid.appendChild(div);
+    });
+    
+    regInfoBox.style.display = "block";
+  }
 
   init();
   if (exportJpgBtn) exportJpgBtn.addEventListener("click", exportDetailAsJpg);
