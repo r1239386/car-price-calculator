@@ -166,6 +166,16 @@ select:focus {
   background: #2563eb;
 }
 
+.btn-all-inclusive {
+  background: #f59e0b;
+  color: #fff;
+  border: 1px solid #d97706;
+}
+
+.btn-all-inclusive:hover {
+  background: #d97706;
+}
+
 .btn-gift {
   background: #ef4444;
   color: #fff;
@@ -329,12 +339,12 @@ select:focus {
 }
 
 .detail-total-row .detail-label {
-  color: var(--text);
+  color: #111827 !important;
 }
 
 .detail-total-row .detail-amount {
-  color: var(--primary-2);
   font-size: 18px;
+  color: #4f46e5 !important; /* 總計金額改為靛藍色 */
 }
 
 .actions {
@@ -697,7 +707,7 @@ select:focus {
     font-size: 16px;
     text-align: center;
     margin: 0 0 10px;
-    color: #000;
+    color: #111827; /* 極深灰 */
   }
 
   .detail {
@@ -738,9 +748,10 @@ select:focus {
 
   /* 左側項目名稱：允許換行，避免名稱太長擠壓到右側金額 */
   .detail-label {
-    flex: 1;
+	flex: 1;
     padding-right: 8px;
     word-break: break-all;
+    color: #4b5563 !important; /* 一般項目名稱用中灰色 */
   }
 
   /* 右側金額：強制不換行，保持金額完整性 */
@@ -748,12 +759,19 @@ select:focus {
     white-space: nowrap;
     font-weight: bold;
   }
+  /* 確保負數(扣除)印出紅色，正數(增加)印出深青色 */
+  .amount-negative {
+    color: #dc2626 !important; /* 紅色 */
+  }
+  .amount-positive {
+    color: #0f766e !important; /* 深青色 */
+  }
 
   /* 底部總計列 */
   .detail-total-row {
     margin-top: 10px;
     padding-top: 10px;
-    border-top: 2px solid #000 !important;
+    border-top: 2px solid #4f46e5 !important;
     font-size: 14px;
     font-weight: 900;
   }
