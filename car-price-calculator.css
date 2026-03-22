@@ -705,7 +705,7 @@ select:focus {
     visibility: visible !important;
     border-top: 1px dashed #000;
     padding-top: 10px;
-    font-size: 12px; /* 縮小基礎字體，適應窄版面 */
+    font-size: 18px; /* 縮小基礎字體，適應窄版面 */
     color: #000;
   }
 
