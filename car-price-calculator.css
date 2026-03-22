@@ -370,6 +370,155 @@ select:focus {
   border-color: rgba(239, 68, 68, 0.55);
 }
 
+/* Modal — 新增扣除項目 */
+.modal-deduction .modal-body {
+  gap: 14px;
+}
+
+.deduction-check-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 14px;
+  border-radius: 10px;
+  border: 1px solid var(--border);
+  cursor: pointer;
+  transition: background 0.15s, border-color 0.15s;
+}
+
+.deduction-check-row:hover {
+  background: rgba(79, 70, 229, 0.04);
+  border-color: rgba(79, 70, 229, 0.2);
+}
+
+.deduction-check-row input[type="checkbox"] {
+  width: 20px;
+  height: 20px;
+  flex-shrink: 0;
+  cursor: pointer;
+  accent-color: var(--primary);
+}
+
+.deduction-check-row span {
+  flex: 1;
+  font-weight: 600;
+}
+
+.deduction-check-with-date {
+  flex-wrap: wrap;
+}
+
+.deduction-check-wrap {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex: 1;
+  min-width: 0;
+  cursor: pointer;
+}
+
+.deduction-check-with-date .deduction-check-wrap {
+  flex: 1 1 auto;
+}
+
+.deduction-date-input {
+  width: 100%;
+  max-width: 180px;
+  min-height: 44px;
+  padding: 10px 12px;
+}
+
+.deduction-date-input:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  background: #f3f4f6;
+}
+
+@media (max-width: 480px) {
+  .deduction-check-row {
+    padding: 14px 12px;
+  }
+
+  .deduction-check-row input[type="checkbox"] {
+    width: 24px;
+    height: 24px;
+  }
+
+  .deduction-date-input {
+    max-width: none;
+    min-height: 48px;
+  }
+}
+
+/* Modal — 新增增加項目（分類快選按鈕） */
+.modal-addition .modal-panel {
+  width: min(520px, 100%);
+}
+
+.modal-addition-body {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.addition-category {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.addition-category-title {
+  margin: 0;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--muted);
+}
+
+.addition-quick-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px 12px;
+}
+
+.addition-quick-btn {
+  padding: 10px 14px;
+  border-radius: 10px;
+  border: 1px solid var(--border);
+  background: #fff;
+  color: var(--text);
+  font-weight: 600;
+  font-size: 14px;
+  cursor: pointer;
+  transition: background 0.15s, border-color 0.15s;
+  text-align: center;
+}
+
+.addition-quick-btn:hover {
+  background: rgba(79, 70, 229, 0.08);
+  border-color: rgba(79, 70, 229, 0.3);
+}
+
+.addition-quick-blank {
+  background: #f9fafb;
+  color: var(--muted);
+}
+
+.addition-quick-blank:hover {
+  background: rgba(79, 70, 229, 0.06);
+}
+
+@media (max-width: 480px) {
+  .addition-quick-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .addition-quick-btn {
+    padding: 12px 16px;
+    min-height: 48px;
+    font-size: 15px;
+  }
+}
+
 /* Modal — 舊車稅金試算 */
 .modal {
   position: fixed;
@@ -477,7 +626,13 @@ select:focus {
 
 /* ========== 列印樣式 @media print ========== */
 @media print {
-  /* 隱藏無關元素 */
+  @page {
+    /* 遵守規定：維持預設 A4 紙張直向列印 */
+    size: A4 portrait;
+    margin: 0; 
+  }
+
+  /* 隱藏無關的網頁元素 */
   .header,
   .footer,
   .modal,
@@ -500,18 +655,25 @@ select:focus {
     visibility: hidden !important;
   }
 
-  /* 僅顯示明細區塊 */
+  /* 初始化列印頁面背景 */
   body,
   html {
     background: #fff !important;
     margin: 0;
     padding: 0;
+    width: 100%;
+    height: 100%;
   }
 
+  /* ★ 核心修改：在 A4 紙上劃出一個 10x28 公分的範圍 */
   .app {
-    max-width: 100%;
-    margin: 0;
-    padding: 12px;
+    width: 100mm !important; /* 寬度嚴格限制 10 公分 */
+    max-height: 280mm !important; /* 長度最長 28 公分 */
+    margin: 10mm !important; /* 距離 A4 紙左上角邊緣留 1 公分，避免被印表機吃掉 */
+    padding: 5mm !important; /* 內容與虛線框的距離 */
+    border: 1px dashed #ccc !important; /* 加一圈淡淡的灰色虛線框，方便用剪刀裁切 */
+    box-sizing: border-box;
+    overflow: hidden; /* 確保內容萬一太多，也不會超過 28 公分 */
   }
 
   .card {
@@ -528,26 +690,30 @@ select:focus {
     margin: 0;
   }
 
+  /* 標題置中，更有單據感 */
   .breakdown-title {
     display: block !important;
     visibility: visible !important;
-    font-size: 18px;
-    margin: 0 0 12px;
-    color: #1f2330;
+    font-size: 16px;
+    text-align: center;
+    margin: 0 0 10px;
+    color: #000;
   }
 
   .detail {
     display: block !important;
     visibility: visible !important;
-    border-top: 1px solid #333;
-    padding-top: 12px;
-    font-size: 14px;
+    border-top: 1px dashed #000;
+    padding-top: 10px;
+    font-size: 12px; /* 縮小基礎字體，適應窄版面 */
+    color: #000;
   }
 
   .detail-row,
   .detail-total-row {
     display: flex !important;
     visibility: visible !important;
+    align-items: center;
   }
 
   .detail-group-title,
@@ -556,27 +722,43 @@ select:focus {
     visibility: visible !important;
   }
 
+  /* 分隔線改為虛線 */
   .detail-divider {
     height: 1px;
-    background: #333;
-    margin: 8px 0;
+    background: transparent;
+    border-top: 1px dashed #000;
+    margin: 6px 0;
   }
 
   .detail-label,
   .detail-amount {
     visibility: visible !important;
-    color: #1f2330 !important;
+    color: #000 !important;
   }
 
+  /* 左側項目名稱：允許換行，避免名稱太長擠壓到右側金額 */
+  .detail-label {
+    flex: 1;
+    padding-right: 8px;
+    word-break: break-all;
+  }
+
+  /* 右側金額：強制不換行，保持金額完整性 */
+  .detail-amount {
+    white-space: nowrap;
+    font-weight: bold;
+  }
+
+  /* 底部總計列 */
   .detail-total-row {
-    margin-top: 12px;
-    padding-top: 12px;
-    border-top: 2px solid #1f2330 !important;
-    font-size: 16px;
+    margin-top: 10px;
+    padding-top: 10px;
+    border-top: 2px solid #000 !important;
+    font-size: 14px;
+    font-weight: 900;
   }
 
   .detail-total-row .detail-amount {
-    font-size: 18px;
+    font-size: 16px;
   }
 }
-
