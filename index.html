@@ -13,16 +13,28 @@
         <p class="sub">輸入車價，並可動態新增「扣除項目」與「增加項目」(可自訂名稱)。</p>
       </header>
 
-      <section class="card">
-        <h2 class="card-title">1) 基礎車價</h2>
-        <div class="field-row">
-          <label for="basePrice">車價</label>
-          <input id="basePrice" type="text" inputmode="decimal" placeholder="例如：215000" value="215000" />
-        </div>
-        <div class="helper">
-          金額支援輸入含逗號（例如 215,000）。小數可保留但預設顯示為整數。
-        </div>
-      </section>
+	
+		<section class="card">
+	  <div class="card-head">
+		<h2 class="card-title">1) 基礎車價</h2>
+		<input type="file" id="uploadRegInput" accept="image/*" style="display: none;" />
+		<button id="uploadRegBtn" type="button" class="btn btn-secondary" style="font-size: 13px;">
+		  📷 上傳行照自動辨識
+		</button>
+	  </div>
+	  <div class="field-row">
+		<label for="basePrice">車價</label>
+		<input id="basePrice" type="text" inputmode="decimal" placeholder="例如：215000" value="215000" />
+	  </div>
+	  <div class="helper">
+		金額支援輸入含逗號（例如 215,000）。小數可保留但預設顯示為整數。
+	  </div>
+
+	  <div id="regInfoBox" class="reg-info-box" style="display: none;">
+		<div class="reg-info-title">行照資訊</div>
+		<div class="reg-info-grid" id="regInfoGrid"></div>
+	  </div>
+	</section>
 
       <section class="grid">
         <section class="card">
