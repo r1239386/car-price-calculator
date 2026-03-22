@@ -51,14 +51,17 @@
           <div class="card-head">
             <h2 class="card-title">3) 增加項目（會加上）</h2>
             <div class="card-head-btns">
-              <button id="addAdditionBtn" type="button" class="btn btn-secondary">新增"增加"</button>
-              <button id="openUsedCarTaxModalBtn" type="button" class="btn btn-tax-old">
-                舊車稅金試算
-              </button>
-              <button id="openNewCarTaxModalBtn" type="button" class="btn btn-tax-new">
-                新車稅金試算
-              </button>
-            </div>
+            <button id="addAdditionBtn" type="button" class="btn btn-secondary">新增"增加"</button>
+            <button id="openUsedCarTaxModalBtn" type="button" class="btn btn-tax-old">
+              舊車稅金試算
+            </button>
+            <button id="openNewCarTaxModalBtn" type="button" class="btn btn-tax-new">
+              新車稅金試算
+            </button>
+            <button id="makeAllInclusiveBtn" type="button" class="btn btn-all-inclusive">
+              🌟 一鍵辦到好
+            </button>
+          </div>
           </div>
           <table class="list">
             <thead>
@@ -113,6 +116,110 @@
         提示：可自行新增/移除項目並更改名稱與金額。
       </footer>
     </main>
+
+    <div
+      id="addDeductionModal"
+      class="modal"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="addDeductionModalTitle"
+      hidden
+    >
+      <div class="modal-backdrop" data-deduction-modal-dismiss tabindex="-1"></div>
+      <div class="modal-panel modal-deduction">
+        <h3 id="addDeductionModalTitle" class="modal-title">新增扣除項目</h3>
+        <div class="modal-body">
+          <label class="deduction-check-row">
+            <input id="dedOptDeposit" type="checkbox" />
+            <span>訂金</span>
+          </label>
+          <label class="deduction-check-row">
+            <input id="dedOptLoan" type="checkbox" />
+            <span>貸款</span>
+          </label>
+          <label class="deduction-check-row">
+            <input id="dedOptOldCar" type="checkbox" />
+            <span>估舊車</span>
+          </label>
+          <div class="deduction-check-row deduction-check-with-date">
+            <label class="deduction-check-wrap">
+              <input id="dedOptDownPayment" type="checkbox" />
+              <span>頭期款</span>
+            </label>
+            <input id="dedDownPaymentDate" type="date" class="deduction-date-input" disabled />
+          </div>
+          <div class="deduction-check-row deduction-check-with-date">
+            <label class="deduction-check-wrap">
+              <input id="dedOptRemittance" type="checkbox" />
+              <span>匯款</span>
+            </label>
+            <input id="dedRemittanceDate" type="date" class="deduction-date-input" disabled />
+          </div>
+          <label class="deduction-check-row">
+            <input id="dedOptBlank" type="checkbox" />
+            <span>空白</span>
+          </label>
+        </div>
+        <div class="modal-actions">
+          <button type="button" id="addDeductionConfirmBtn" class="btn">確定送出</button>
+        </div>
+      </div>
+    </div>
+
+   <div
+      id="addAdditionModal"
+      class="modal"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="addAdditionModalTitle"
+      hidden
+    >
+      <div class="modal-backdrop" data-addition-modal-dismiss tabindex="-1"></div>
+      <div class="modal-panel modal-addition">
+        <h3 id="addAdditionModalTitle" class="modal-title">新增增加項目</h3>
+        <div class="modal-body modal-addition-body">
+          <div class="addition-category">
+            <h4 class="addition-category-title">過戶類</h4>
+            <div class="addition-quick-grid">
+              <button type="button" class="addition-quick-btn" data-name="代刻印章" data-amount="40">代刻印章</button>
+              <button type="button" class="addition-quick-btn" data-name="過戶手續費" data-amount="0">過戶手續費</button>
+              <button type="button" class="addition-quick-btn" data-name="領牌費(含驗車及相關費用)" data-amount="0">領牌費(含驗車及相關費用)</button>
+              <button type="button" class="addition-quick-btn" data-name="選牌費(含代檢選號手續費)" data-amount="2015">選牌費(含代檢選號手續費)</button>
+            </div>
+          </div>
+          <div class="addition-category">
+            <h4 class="addition-category-title">保險類</h4>
+            <div class="addition-quick-grid">
+              <button type="button" class="addition-quick-btn" data-name="強制險" data-amount="0">強制險</button>
+              <button type="button" class="addition-quick-btn" data-name="第三責任險" data-amount="0">第三責任險</button>
+            </div>
+          </div>
+          <div class="addition-category">
+            <h4 class="addition-category-title">貸款類</h4>
+            <div class="addition-quick-grid">
+              <button type="button" class="addition-quick-btn" data-name="貸款動保手續費" data-amount="4000">貸款動保手續費</button>
+            </div>
+          </div>
+          <div class="addition-category">
+            <h4 class="addition-category-title">常用配件</h4>
+            <div class="addition-quick-grid">
+              <button type="button" class="addition-quick-btn" data-name="行車記錄器" data-amount="0">行車記錄器</button>
+              <button type="button" class="addition-quick-btn" data-name="安卓機" data-amount="0">安卓機</button>
+              <button type="button" class="addition-quick-btn" data-name="避光墊" data-amount="0">避光墊</button>
+              <button type="button" class="addition-quick-btn" data-name="腳踏墊" data-amount="0">腳踏墊</button>
+              <button type="button" class="addition-quick-btn" data-name="胎壓偵測器" data-amount="0">胎壓偵測器</button>
+              <button type="button" class="addition-quick-btn" data-name="隔熱紙" data-amount="0">隔熱紙</button>
+            </div>
+          </div>
+          <div class="addition-category">
+            <h4 class="addition-category-title">其他</h4>
+            <div class="addition-quick-grid">
+              <button type="button" class="addition-quick-btn addition-quick-blank" data-name="" data-amount="0">新增空白項目</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
 
     <div
       id="usedCarTaxModal"
