@@ -42,6 +42,44 @@ body {
   color: var(--muted);
 }
 
+/* 賣車／收車 兩段式切換 */
+.deal-segmented {
+  display: inline-flex;
+  margin-top: 12px;
+  padding: 3px;
+  background: var(--border);
+  border-radius: 10px;
+  gap: 2px;
+}
+
+.deal-segment {
+  border: none;
+  background: transparent;
+  padding: 8px 18px;
+  border-radius: 8px;
+  font: inherit;
+  font-weight: 600;
+  font-size: 14px;
+  color: var(--muted);
+  cursor: pointer;
+  transition: color 0.15s ease, background 0.15s ease, box-shadow 0.15s ease;
+}
+
+.deal-segment:hover:not(.deal-segment--active) {
+  color: var(--text);
+}
+
+.deal-segment--active {
+  background: var(--card);
+  color: var(--primary);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+}
+
+.deal-segment:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: 2px;
+}
+
 .card {
   background: var(--card);
   border: 1px solid var(--border);
@@ -672,14 +710,14 @@ select:focus {
     margin: 0;
     padding: 0;
     width: 100%;
-    height: 100%;
+    height: auto;
   }
 
-  /* ★ 核心修改：在 A4 紙上劃出一個 10x28 公分的範圍 */
+  /* ★ 核心修改：在 A4 紙上劃出一個 12x28 公分的範圍 */
   .app {
-    width: 100mm !important; /* 寬度嚴格限制 10 公分 */
+    width: 120mm !important; /* 寬度嚴格限制 12 公分 */
     max-height: 280mm !important; /* 長度最長 28 公分 */
-    margin: 10mm !important; /* 距離 A4 紙左上角邊緣留 1 公分，避免被印表機吃掉 */
+    margin: 5mm !important; /* 距離 A4 紙左上角邊緣留 0.5 公分，避免被印表機吃掉 */
     padding: 5mm !important; /* 內容與虛線框的距離 */
     border: 1px dashed #ccc !important; /* 加一圈淡淡的灰色虛線框，方便用剪刀裁切 */
     box-sizing: border-box;
@@ -704,7 +742,7 @@ select:focus {
   .breakdown-title {
     display: block !important;
     visibility: visible !important;
-    font-size: 16px;
+    font-size: 18px;
     text-align: center;
     margin: 0 0 10px;
     color: #111827; /* 極深灰 */
@@ -715,7 +753,7 @@ select:focus {
     visibility: visible !important;
     border-top: 1px dashed #000;
     padding-top: 10px;
-    font-size: 18px; /* 縮小基礎字體，適應窄版面 */
+    font-size: 20px; /* 縮小基礎字體，適應窄版面 */
     color: #000;
   }
 
@@ -772,12 +810,12 @@ select:focus {
     margin-top: 10px;
     padding-top: 10px;
     border-top: 2px solid #4f46e5 !important;
-    font-size: 14px;
+    font-size: 20px;
     font-weight: 900;
   }
 
   .detail-total-row .detail-amount {
-    font-size: 16px;
+    font-size: 20px;
   }
 }
 

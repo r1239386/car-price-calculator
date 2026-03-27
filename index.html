@@ -97,15 +97,15 @@
         <h2 class="card-title">4) 計算結果</h2>
         <div class="result">
           <div class="result-line">
-            <span>車價 - 扣除總額</span>
-            <strong id="afterDeductions">0</strong>
+            <span>新車小計</span>
+            <strong id="newCarSubtotal">0</strong>
           </div>
           <div class="result-line">
-            <span>+ 增加總額</span>
-            <strong id="afterAdditions">0</strong>
+            <span>舊車小計</span>
+            <strong id="oldCarSubtotal">0</strong>
           </div>
           <div class="result-line total">
-            <span>合計</span>
+            <span id="finalResultLabel">最後結果</span>
             <strong id="grandTotal">0</strong>
           </div>
         </div>
@@ -121,6 +121,35 @@
               列印明細
             </button>
           </div>
+        </div>
+      </section>
+
+      <section class="card" id="usedCarCard">
+        <div class="card-head">
+          <h2 class="card-title" style="margin: 0;">舊車</h2>
+          <label class="deduction-check-row" style="border: none; padding: 0; margin: 0;">
+            <input id="usedCarEnabled" type="checkbox" />
+            <span>有舊車/收車(讓新車小計是0)</span>
+          </label>
+        </div>
+
+        <div id="usedCarInputs" style="display: none;">
+          <div class="field-row" style="margin-top: 8px;">
+            <label for="usedCarAmount">舊車金額</label>
+            <input id="usedCarAmount" type="text" inputmode="decimal" placeholder="例如：85000" value="0" />
+          </div>
+
+          <div class="field-row" style="margin-top: 12px;">
+            <label for="usedCarLicenseTaxDelta">牌照稅 delta</label>
+            <input id="usedCarLicenseTaxDelta" type="text" inputmode="decimal" placeholder="未繳填正；溢繳填負" value="0" />
+          </div>
+
+          <div class="field-row" style="margin-top: 12px;">
+            <label for="usedCarFuelTaxDelta">燃料費 delta</label>
+            <input id="usedCarFuelTaxDelta" type="text" inputmode="decimal" placeholder="未繳填正；溢繳填負" value="0" />
+          </div>
+
+          <div class="helper" id="usedCarGiftHint" style="display: none; margin-top: 10px;"></div>
         </div>
       </section>
 
@@ -148,10 +177,6 @@
           <label class="deduction-check-row">
             <input id="dedOptLoan" type="checkbox" />
             <span>貸款</span>
-          </label>
-          <label class="deduction-check-row">
-            <input id="dedOptOldCar" type="checkbox" />
-            <span>估舊車</span>
           </label>
           <div class="deduction-check-row deduction-check-with-date">
             <label class="deduction-check-wrap">

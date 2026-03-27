@@ -16,11 +16,15 @@
 
   const deductionTotalEl = $("deductionTotal");
   const additionTotalEl = $("additionTotal");
-  const afterDeductionsEl = $("afterDeductions");
-  const afterAdditionsEl = $("afterAdditions");
+  const newCarSubtotalEl = $("newCarSubtotal");
+  const oldCarSubtotalEl = $("oldCarSubtotal");
+  const finalResultLabelEl = $("finalResultLabel");
   const grandTotalEl = $("grandTotal");
 
   const detailEl = $("detail");
+
+  const dealSegSell = $("dealSegSell");
+  const dealSegBuy = $("dealSegBuy");
 
   const addDeductionBtn = $("addDeductionBtn");
   const addAdditionBtn = $("addAdditionBtn");
@@ -31,13 +35,21 @@
   const addDeductionModal = $("addDeductionModal");
   const dedOptDeposit = $("dedOptDeposit");
   const dedOptLoan = $("dedOptLoan");
-  const dedOptOldCar = $("dedOptOldCar");
   const dedOptDownPayment = $("dedOptDownPayment");
   const dedOptRemittance = $("dedOptRemittance");
   const dedOptBlank = $("dedOptBlank");
   const dedDownPaymentDate = $("dedDownPaymentDate");
   const dedRemittanceDate = $("dedRemittanceDate");
   const addDeductionConfirmBtn = $("addDeductionConfirmBtn");
+
+  // 舊車 UI 控制
+  const usedCarCard = $("usedCarCard");
+  const usedCarEnabledEl = $("usedCarEnabled");
+  const usedCarInputsWrap = $("usedCarInputs");
+  const usedCarAmountInput = $("usedCarAmount");
+  const usedCarLicenseTaxDeltaInput = $("usedCarLicenseTaxDelta");
+  const usedCarFuelTaxDeltaInput = $("usedCarFuelTaxDelta");
+  const usedCarGiftHintEl = $("usedCarGiftHint");
 
   const addAdditionModal = $("addAdditionModal");
 
@@ -55,7 +67,8 @@
   const uctPaymentStatus = $("uctPaymentStatus");
   const uctPaymentStatusWrap = $("uctPaymentStatusWrap");
 
-  const STORAGE_KEY = "carPriceCalculator.v1";
+  const STORAGE_KEY = "carPriceCalculator.v2";
+  const LEGACY_STORAGE_KEY = "carPriceCalculator.v1";
 
   // 台灣汽車稅金對照表 (年度總額)
   const TAX_DATA = {
@@ -101,21 +114,30 @@
     return `${m}/${d}`;
   }
 
+  // 產生不帶前導 0 的 mm/dd（例如 03/25 -> 3/25）
+  function isoToMmDdNoZero(iso) {
+    const parts = String(iso || "").split("-");
+    if (parts.length !== 3) return "";
+    let [, m, d] = parts;
+    m = String(m ?? "").replace(/^0+/, "");
+    d = String(d ?? "").replace(/^0+/, "");
+    return `${m}/${d}`;
+  }
+
   /** 將 YYYY-MM-DD 轉為 YYYY/MM/DD */
   function isoToSlashDate(iso) {
     if (!iso || typeof iso !== "string") return "";
     return String(iso).replace(/-/g, "/");
   }
 
-  /** 取得扣除項目類別權重：1訂金 2貸款 3估舊車 4頭期款 5匯款 6其他 */
+  /** 取得扣除項目類別權重：1訂金 2貸款 3頭期款 4匯款 5其他 */
   function getDeductionWeight(name) {
     const n = String(name ?? "").trim();
     if (n === "訂金") return 1;
     if (n === "貸款") return 2;
-    if (n === "估舊車") return 3;
-    if (n.includes("頭期款")) return 4;
-    if (n.includes("匯款")) return 5;
-    return 6;
+    if (n.includes("頭期款")) return 3;
+    if (n.includes("匯款")) return 4;
+    return 5;
   }
 
   /** 從名稱中提取 YYYY/MM/DD 格式日期，若無則回傳 null */
@@ -325,7 +347,7 @@
 
   function openAddDeductionModal() {
     if (!addDeductionModal) return;
-    [dedOptDeposit, dedOptLoan, dedOptOldCar, dedOptDownPayment, dedOptRemittance, dedOptBlank].forEach(
+    [dedOptDeposit, dedOptLoan, dedOptDownPayment, dedOptRemittance, dedOptBlank].forEach(
       (el) => el && (el.checked = false)
     );
     const today = toIsoLocalDate(new Date());
@@ -371,9 +393,6 @@
     if (dedOptLoan?.checked) {
       items.push({ name: "貸款", amount: 0 });
     }
-    if (dedOptOldCar?.checked) {
-      items.push({ name: "估舊車", amount: 0 });
-    }
     if (dedOptDownPayment?.checked) {
       const dateStr = dedDownPaymentDate?.value || toIsoLocalDate(new Date());
       items.push({ name: `頭期款(交付日期${isoToSlashDate(dateStr)})`, amount: 0 });
@@ -391,7 +410,6 @@
       const name = String(item.name ?? "").trim();
       if (dedOptDeposit?.checked && name === "訂金") return false;
       if (dedOptLoan?.checked && name === "貸款") return false;
-      if (dedOptOldCar?.checked && name === "估舊車") return false;
       if (dedOptDownPayment?.checked && name.includes("頭期款")) return false;
       return true;
     });
@@ -433,35 +451,53 @@
     
     const row = rows[rowIdx];
     const annualFuel = uctFuelType.value === "gas" ? row.fuelGas : row.fuelDiesel;
+    const licenseTotal = row.license; // 年度牌照稅總額
+    const fuelTotal = annualFuel; // 年度燃料費總額
     
     // 依監理站規則：無條件捨去(floor)、牌照看閏年、燃料用360天
     const yearDays = getYearDays(jan1Iso);
     const licensePro = Math.floor((row.license * actualDays) / yearDays);
     const fuelPro = Math.floor((annualFuel * fuelDays) / 360);
     const B = licensePro + fuelPro; // 應負擔總額
+
+    const rangeLabel = `${isoToMmDdNoZero(jan1Iso)}~${isoToMmDdNoZero(endVal)}`;
     
     const status = uctPaymentStatus.value;
-    let A = 0;
+    let paidLicense = 0;
+    let paidFuel = 0;
     let paidDesc = "都沒繳(0)";
     if (status === "license") {
-      A = row.license;
+      paidLicense = row.license;
       paidDesc = `已繳牌照(${row.license})`;
     } else if (status === "fuel") {
-      A = annualFuel;
+      paidFuel = annualFuel;
       paidDesc = `已繳燃料(${annualFuel})`;
     } else if (status === "both") {
-      A = row.license + annualFuel;
-      paidDesc = `牌+燃皆繳(${A})`;
+      paidLicense = row.license;
+      paidFuel = annualFuel;
+      paidDesc = `牌+燃皆繳(${paidLicense + paidFuel})`;
     }
+
+    // delta 的定義：
+    // - 未繳 -> delta 為正（視為扣除，讓最後結果下降）
+    // - 溢繳/退還 -> delta 為負（視為增加，讓最後結果上升）
+    const licenseDelta = licensePro - paidLicense;
+    const fuelDelta = fuelPro - paidFuel;
+    const result = licenseDelta + fuelDelta;
     
     return {
-      result: B - A,
+      result,
       days: actualDays,
       fuelDays: fuelDays, // 傳出燃料專屬天數
       licensePro,
       fuelPro,
       totalPro: B,
-      paidDesc
+      paidDesc,
+      licenseDelta,
+      fuelDelta,
+      rangeLabel,
+      licenseTotal,
+      fuelTotal,
     };
   }
 
@@ -502,28 +538,27 @@ function confirmCarTax() {
         alert("請確認已選擇日期、排氣量級距與繳納狀態。");
         return;
       }
-      clearOldCarTaxItems();
-      
-      // 修改明細字串，清楚標示牌照與燃料的「不同天數」避免爭議
-	  // 【修改後】：拿掉天數顯示
-      const detailStr = `(牌照:${calcObj.licensePro} + 燃料:${calcObj.fuelPro} = ${calcObj.totalPro}，扣除${calcObj.paidDesc})`;
 
-      if (calcObj.result < 0) {
-        const absVal = Math.abs(calcObj.result);
-        state.deductions.push({
-          id: uid(),
-          name: `舊車稅金溢繳 ${detailStr}：${absVal}`,
-          amount: absVal,
-        });
-      } else if (calcObj.result > 0) {
-        state.additions.push({
-          id: uid(),
-          name: `舊車稅金欠繳 ${detailStr}：${calcObj.result}`,
-          amount: calcObj.result,
-        });
+      // 舊車稅金改由 state.usedCar 的 delta 欄位承接
+      if (state.usedCar) {
+        state.usedCar.enabled = true;
+        state.usedCar.gifted = false;
+        state.usedCar.licenseTaxDelta = calcObj.licenseDelta;
+        state.usedCar.fuelTaxDelta = calcObj.fuelDelta;
+        state.usedCar.licenseTotal = calcObj.licenseTotal ?? 0;
+        state.usedCar.fuelTotal = calcObj.fuelTotal ?? 0;
+        state.usedCar.rangeLabel = calcObj.rangeLabel || "";
       }
-      renderList("deduction");
-      renderList("addition");
+
+      if (usedCarEnabledEl) usedCarEnabledEl.checked = true;
+      if (usedCarInputsWrap) usedCarInputsWrap.style.display = "";
+      if (usedCarGiftHintEl) {
+        usedCarGiftHintEl.style.display = "none";
+        usedCarGiftHintEl.textContent = "";
+      }
+      if (usedCarLicenseTaxDeltaInput) usedCarLicenseTaxDeltaInput.value = String(calcObj.licenseDelta);
+      if (usedCarFuelTaxDeltaInput) usedCarFuelTaxDeltaInput.value = String(calcObj.fuelDelta);
+
       closeUsedCarTaxModal();
       recompute();
       return;
@@ -577,16 +612,46 @@ function confirmCarTaxGift() {
         return;
       }
       if (calcObj.result <= 0) return;
-      clearOldCarTaxItems();
-      
-      // 【修改後】：拿掉天數顯示
-      const detailStr = `(牌照:${calcObj.licensePro} + 燃料:${calcObj.fuelPro} = ${calcObj.totalPro}，扣除${calcObj.paidDesc})`;
 
-      state.additions.push({
-        id: uid(),
-        name: `(贈送)舊車稅金欠繳 ${detailStr}：${calcObj.result}`,
-        amount: 0,
-      });
+      if (state.usedCar) {
+        state.usedCar.enabled = true;
+        state.usedCar.gifted = true;
+      }
+
+      if (usedCarEnabledEl) usedCarEnabledEl.checked = true;
+      if (usedCarInputsWrap) usedCarInputsWrap.style.display = "";
+
+      // 僅把「目前未繳(正 delta)」的部分歸零
+      const giftedParts = [];
+      const nextLicenseDelta = calcObj.licenseDelta > 0 ? 0 : calcObj.licenseDelta;
+      const nextFuelDelta = calcObj.fuelDelta > 0 ? 0 : calcObj.fuelDelta;
+      if (calcObj.licenseDelta > 0) giftedParts.push("牌照稅");
+      if (calcObj.fuelDelta > 0) giftedParts.push("燃料費");
+
+      if (state.usedCar) {
+        state.usedCar.licenseTaxDelta = nextLicenseDelta;
+        state.usedCar.fuelTaxDelta = nextFuelDelta;
+        state.usedCar.licenseTotal = calcObj.licenseTotal ?? 0;
+        state.usedCar.fuelTotal = calcObj.fuelTotal ?? 0;
+        state.usedCar.rangeLabel = calcObj.rangeLabel || "";
+      }
+
+      if (usedCarLicenseTaxDeltaInput) usedCarLicenseTaxDeltaInput.value = String(nextLicenseDelta);
+      if (usedCarFuelTaxDeltaInput) usedCarFuelTaxDeltaInput.value = String(nextFuelDelta);
+
+      if (usedCarGiftHintEl) {
+        if (giftedParts.length) {
+          usedCarGiftHintEl.textContent = `贈送已套用：${giftedParts.join("、")}（未繳部分歸零）`;
+          usedCarGiftHintEl.style.display = "";
+        } else {
+          usedCarGiftHintEl.style.display = "none";
+          usedCarGiftHintEl.textContent = "";
+        }
+      }
+
+      closeUsedCarTaxModal();
+      recompute();
+      return;
     } else if (taxModalMode === "new") {
       if (!uctStartDate || !uctEndDate || !uctVehicleType || !uctFuelType || !uctRange) return;
       const startVal = uctStartDate.value;
@@ -654,38 +719,196 @@ function confirmCarTaxGift() {
   }
 
   const state = {
+    dealType: "sell", // "sell" | "buy"
     basePrice: 215000,
     deductions: [
       { id: uid(), name: "訂金", amount: 15000 },
     ],
     additions: [],
+    usedCar: {
+      enabled: false,
+      amount: 0,
+      licenseTaxDelta: 0,
+      fuelTaxDelta: 0,
+      gifted: false,
+      rangeLabel: "",
+      licenseTotal: 0,
+      fuelTotal: 0,
+    },
   };
 
   function load() {
     try {
-      const raw = localStorage.getItem(STORAGE_KEY);
+      const rawV2 = localStorage.getItem(STORAGE_KEY);
+      const rawV1 = localStorage.getItem(LEGACY_STORAGE_KEY);
+      const raw = rawV2 || rawV1;
       if (!raw) return;
       const parsed = JSON.parse(raw);
       if (!parsed || typeof parsed !== "object") return;
 
-      if (typeof parsed.basePrice === "number") state.basePrice = parsed.basePrice;
-      if (Array.isArray(parsed.deductions)) {
-        state.deductions = parsed.deductions
-          .map((x) => ({
-            id: typeof x.id === "string" ? x.id : uid(),
-            name: typeof x.name === "string" ? x.name : "",
-            amount: typeof x.amount === "number" ? x.amount : parseMoney(x.amount),
-          }))
-          .slice(0, 200);
+      const normalizeItem = (x) => ({
+        id: typeof x?.id === "string" ? x.id : uid(),
+        name: typeof x?.name === "string" ? x.name : "",
+        amount: typeof x?.amount === "number" ? x.amount : parseMoney(x?.amount),
+      });
+
+      const resetUsedCar = () => {
+        state.usedCar.enabled = false;
+        state.usedCar.amount = 0;
+        state.usedCar.licenseTaxDelta = 0;
+        state.usedCar.fuelTaxDelta = 0;
+        state.usedCar.gifted = false;
+        state.usedCar.rangeLabel = "";
+        state.usedCar.licenseTotal = 0;
+        state.usedCar.fuelTotal = 0;
+      };
+
+      // 從舊版「舊車稅金...」字串推回 license/fuel delta
+      const parseLegacyOldCarTaxDeltas = (name) => {
+        const str = String(name ?? "");
+        if (!str.includes("舊車稅金")) return null;
+        if (str.includes("(贈送)")) return null; // 贈送在舊版會把未繳部分直接歸零
+
+        const licensePro = Number(str.match(/牌照:(\d+)/)?.[1] ?? 0);
+        const fuelPro = Number(str.match(/燃料:(\d+)/)?.[1] ?? 0);
+        if (!Number.isFinite(licensePro) || !Number.isFinite(fuelPro)) return null;
+
+        // paidDesc 可能是以下之一：
+        // - 已繳牌照(數字)
+        // - 已繳燃料(數字)
+        // - 牌+燃皆繳(數字)
+        const paidLicenseMatch = str.match(/已繳牌照\((\d+)\)/);
+        const paidFuelMatch = str.match(/已繳燃料\((\d+)\)/);
+        const paidBothMatch = str.match(/牌\+燃皆繳\((\d+)\)/);
+        const paidNoneMatch = str.match(/都沒繳\((\d+)\)/);
+
+        let paidLicense = 0;
+        let paidFuel = 0;
+
+        if (paidNoneMatch) {
+          paidLicense = 0;
+          paidFuel = 0;
+        } else if (paidLicenseMatch) {
+          paidLicense = Number(paidLicenseMatch[1]);
+        } else if (paidFuelMatch) {
+          paidFuel = Number(paidFuelMatch[1]);
+        } else if (paidBothMatch) {
+          const paidTotal = Number(paidBothMatch[1]);
+          const proSum = licensePro + fuelPro;
+          if (proSum > 0) {
+            paidLicense = paidTotal * (licensePro / proSum);
+            paidFuel = paidTotal - paidLicense;
+          } else {
+            // 兜底：proSum=0 無法分，直接給 license
+            paidLicense = paidTotal;
+            paidFuel = 0;
+          }
+        } else {
+          return null;
+        }
+
+        const licenseDelta = licensePro - paidLicense;
+        const fuelDelta = fuelPro - paidFuel;
+        if (!Number.isFinite(licenseDelta) || !Number.isFinite(fuelDelta)) return null;
+
+        return { licenseDelta, fuelDelta };
+      };
+
+      if (parsed.dealType === "sell" || parsed.dealType === "buy") {
+        state.dealType = parsed.dealType;
       }
-      if (Array.isArray(parsed.additions)) {
-        state.additions = parsed.additions
-          .map((x) => ({
-            id: typeof x.id === "string" ? x.id : uid(),
-            name: typeof x.name === "string" ? x.name : "",
-            amount: typeof x.amount === "number" ? x.amount : parseMoney(x.amount),
-          }))
-          .slice(0, 200);
+      if (typeof parsed.basePrice === "number") state.basePrice = parsed.basePrice;
+
+      // v1 -> v2 migration
+      if (rawV1 && !rawV2) {
+        resetUsedCar();
+        let hadLegacyTax = false;
+
+        const nextDeductions = [];
+        const nextAdditions = [];
+
+        if (Array.isArray(parsed.deductions)) {
+          for (const x of parsed.deductions) {
+            const it = normalizeItem(x);
+            const name = String(it.name ?? "").trim();
+
+            if (name === "估舊車") {
+              state.usedCar.amount = Number(it.amount) || 0;
+              state.usedCar.enabled = true;
+              continue;
+            }
+
+            if (name.includes("舊車稅金")) {
+              const deltas = parseLegacyOldCarTaxDeltas(name);
+              if (deltas) {
+                state.usedCar.licenseTaxDelta += deltas.licenseDelta;
+                state.usedCar.fuelTaxDelta += deltas.fuelDelta;
+                state.usedCar.enabled = true;
+                hadLegacyTax = true;
+              }
+              continue;
+            }
+
+            nextDeductions.push(it);
+          }
+        }
+
+        if (Array.isArray(parsed.additions)) {
+          for (const x of parsed.additions) {
+            const it = normalizeItem(x);
+            const name = String(it.name ?? "").trim();
+
+            // 舊版 gift item 會落在 additions；忽略即可（因為 delta 已歸零）
+            if (name.includes("舊車稅金")) {
+              const deltas = parseLegacyOldCarTaxDeltas(name);
+              if (deltas) {
+                state.usedCar.licenseTaxDelta += deltas.licenseDelta;
+                state.usedCar.fuelTaxDelta += deltas.fuelDelta;
+                state.usedCar.enabled = true;
+                hadLegacyTax = true;
+              } else if (name.includes("(贈送)")) {
+                // 只要你有 set gift，就應視為仍有舊車（usedCar.amount 可能為 0）
+                hadLegacyTax = true;
+              }
+              continue;
+            }
+
+            nextAdditions.push(it);
+          }
+        }
+
+        if (hadLegacyTax || state.usedCar.amount !== 0) state.usedCar.enabled = true;
+
+        state.deductions = nextDeductions.slice(0, 200);
+        state.additions = nextAdditions.slice(0, 200);
+      } else {
+        // v2：直接載入（但也清掉可能存在的舊車 legacy 行項）
+        if (Array.isArray(parsed.deductions)) {
+          state.deductions = parsed.deductions
+            .map(normalizeItem)
+            .filter((it) => !String(it.name ?? "").includes("舊車稅金") && String(it.name ?? "").trim() !== "估舊車")
+            .slice(0, 200);
+        }
+        if (Array.isArray(parsed.additions)) {
+          state.additions = parsed.additions
+            .map(normalizeItem)
+            .filter((it) => !String(it.name ?? "").includes("舊車稅金"))
+            .slice(0, 200);
+        }
+        if (parsed.usedCar && typeof parsed.usedCar === "object") {
+          const uc = parsed.usedCar;
+          state.usedCar.enabled = Boolean(uc.enabled);
+          state.usedCar.amount = typeof uc.amount === "number" ? uc.amount : parseMoney(uc.amount);
+          state.usedCar.licenseTaxDelta =
+            typeof uc.licenseTaxDelta === "number" ? uc.licenseTaxDelta : parseMoney(uc.licenseTaxDelta);
+          state.usedCar.fuelTaxDelta = typeof uc.fuelTaxDelta === "number" ? uc.fuelTaxDelta : parseMoney(uc.fuelTaxDelta);
+          state.usedCar.gifted = Boolean(uc.gifted);
+          state.usedCar.rangeLabel = typeof uc.rangeLabel === "string" ? uc.rangeLabel : "";
+          state.usedCar.licenseTotal =
+            typeof uc.licenseTotal === "number" ? uc.licenseTotal : parseMoney(uc.licenseTotal);
+          state.usedCar.fuelTotal =
+            typeof uc.fuelTotal === "number" ? uc.fuelTotal : parseMoney(uc.fuelTotal);
+        }
       }
     } catch {
       // ignore
@@ -764,54 +987,132 @@ function confirmCarTaxGift() {
     }
   function recompute() {
     const base = Number(state.basePrice) || 0;
-    const deductionSum = calcSum(state.deductions);
-    const additionSum = calcSum(state.additions);
+    const usedCar = state.usedCar || {
+      enabled: false,
+      amount: 0,
+      licenseTaxDelta: 0,
+      fuelTaxDelta: 0,
+      gifted: false,
+    };
 
-    const afterDed = base - deductionSum;
-    const grand = afterDed + additionSum;
+    const isLegacyOldCarLine = (name) => {
+      const n = String(name ?? "");
+      return n.includes("舊車稅金") || n.trim() === "估舊車";
+    };
 
-    deductionTotalEl.textContent = formatMoney(deductionSum);
-    additionTotalEl.textContent = formatMoney(additionSum);
-    afterDeductionsEl.textContent = formatMoney(afterDed);
-    afterAdditionsEl.textContent = formatMoney(additionSum);
+    const nonOldCarDeductions = state.deductions.filter((d) => !isLegacyOldCarLine(d.name));
+    const nonOldCarAdditions = state.additions.filter((a) => !isLegacyOldCarLine(a.name));
+
+    const nonOldCarDeductionsSum = calcSum(nonOldCarDeductions);
+    const nonOldCarAdditionsSum = calcSum(nonOldCarAdditions);
+
+    const newCarSubtotal = base - nonOldCarDeductionsSum + nonOldCarAdditionsSum;
+
+    const oldCarEnabled = Boolean(usedCar.enabled);
+    const oldCarAmountRaw = oldCarEnabled ? usedCar.amount : 0;
+    const oldCarLicenseDeltaRaw = oldCarEnabled ? usedCar.licenseTaxDelta : 0;
+    const oldCarFuelDeltaRaw = oldCarEnabled ? usedCar.fuelTaxDelta : 0;
+
+    const oldCarAmount = oldCarEnabled ? Number(oldCarAmountRaw) || 0 : 0;
+    const oldCarLicenseDelta = oldCarEnabled ? Number(oldCarLicenseDeltaRaw) || 0 : 0;
+    const oldCarFuelDelta = oldCarEnabled ? Number(oldCarFuelDeltaRaw) || 0 : 0;
+    // 舊車小計：依照 UI 上 delta（正數會以 '-' 呈現）對應為「從舊車車價扣除」
+    // 讓舊車小計與使用者直覺計算：oldCarAmount - licenseDelta - fuelDelta 一致
+    const oldCarSubtotal = oldCarAmount - oldCarLicenseDelta - oldCarFuelDelta;
+
+    const grand = newCarSubtotal - oldCarSubtotal;
+
+    deductionTotalEl.textContent = formatMoney(nonOldCarDeductionsSum);
+    additionTotalEl.textContent = formatMoney(nonOldCarAdditionsSum);
+
+    newCarSubtotalEl.textContent = formatMoney(newCarSubtotal);
+    oldCarSubtotalEl.textContent = formatMoney(oldCarSubtotal);
+    finalResultLabelEl && (finalResultLabelEl.textContent = "最後結果");
     grandTotalEl.textContent = formatMoney(grand);
 
-    
-
     detailEl.innerHTML = "";
-    appendRow("車價", formatMoney(base));
+    const isPickupMode = oldCarEnabled && Math.abs(newCarSubtotal) < 1e-6;
 
-    const hasDeductions = state.deductions.length > 0;
-    const hasAdditions = state.additions.length > 0;
+    if (!isPickupMode) {
+      appendGroupTitle("1) 新車小計");
+      appendRow("車價", formatMoney(base));
 
-    if (hasDeductions) {
-      for (const d of state.deductions) {
+      const hasNonOldCarDeductions = nonOldCarDeductions.length > 0;
+      const hasNonOldCarAdditions = nonOldCarAdditions.length > 0;
+
+      for (const d of nonOldCarDeductions) {
         const amt = Number(d.amount) || 0;
         const name = d.name?.trim() ? d.name.trim() : "（未命名扣除）";
         const signed = renderSignedAmount("deduction", amt);
         appendRow(name, signed.text, signed.cls);
       }
-    }
 
-    if (hasAdditions) {
-      if (hasDeductions) appendDivider();
-      appendGroupTitle("");
-      for (const a of state.additions) {
-        const amt = Number(a.amount) || 0;
-        const name = a.name?.trim() ? a.name.trim() : "（未命名增加）";
-        const signed = renderSignedAmount("addition", amt);
-        appendRow(name, signed.text, signed.cls);
+      if (hasNonOldCarAdditions) {
+        if (hasNonOldCarDeductions) appendDivider();
+        for (const a of nonOldCarAdditions) {
+          const amt = Number(a.amount) || 0;
+          const name = a.name?.trim() ? a.name.trim() : "（未命名增加）";
+          const signed = renderSignedAmount("addition", amt);
+          appendRow(name, signed.text, signed.cls);
+        }
       }
+
+      if (!hasNonOldCarDeductions && !hasNonOldCarAdditions) {
+        appendRow("目前沒有明細項目", formatMoney(0), "amount-positive");
+      }
+
+      appendTotalRow("新車小計", formatMoney(newCarSubtotal));
     }
 
-    if (!hasDeductions && !hasAdditions) {
-      appendRow("目前沒有明細項目", formatMoney(0), "amount-positive");
-    }
+    if (oldCarEnabled) {
+      if (!isPickupMode) appendDivider();
 
-    appendDivider();
-    const totalLabel = grand >= 0 ? "應收金額" : "應退金額(因貸款金額≥車價)";
-    const totalAmount = grand >= 0 ? grand : Math.abs(grand);
-    appendTotalRow(totalLabel, formatMoney(totalAmount));
+      appendGroupTitle("2) 舊車小計");
+
+      // 舊車金額（車價）顯示不帶扣除/增加符號，顏色保持黑色（跟新車車價一致）
+      appendRow("舊車車價", formatMoney(Math.abs(oldCarAmount)));
+
+      const rangeLabel = usedCar.rangeLabel || "";
+      const deltaIsZero = (x) => Number(x) === 0; // 包含 -0
+      const licenseTotal = Number(usedCar.licenseTotal) || 0;
+      const fuelTotal = Number(usedCar.fuelTotal) || 0;
+
+      // 舊車稅金：依 delta 正負輸出「未繳 / 溢繳 / 已繳」敘述
+      // - 只有在「已繳」狀態（delta==0 且有啟用舊車）才顯示已繳，右側固定顯示 0 且不套用紅綠顏色
+      // - 未繳/溢繳沿用 renderSignedAmount 的紅綠符號
+      const renderOldTaxRow = (kind, delta, nameLabel, valueTextWhenZero) => {
+        const d = Number(delta) || 0;
+        if (deltaIsZero(d)) {
+          const label = `${nameLabel}已繳(${rangeLabel})`;
+          appendRow(label, valueTextWhenZero, "");
+          return;
+        }
+
+        if (d > 0) {
+          const label = `${nameLabel}未繳(${rangeLabel})`;
+          const signed = renderSignedAmount("deduction", d);
+          appendRow(label, signed.text, signed.cls);
+          return;
+        }
+
+        // d < 0
+        const total = kind === "license" ? licenseTotal : fuelTotal;
+        const proratedAmount = Math.max(0, total + d);
+        const label = `${nameLabel}溢繳[${formatMoney(total)}(已繳) - ${formatMoney(proratedAmount)}(${rangeLabel}的${nameLabel})]`;
+        const signed = renderSignedAmount("deduction", d);
+        appendRow(label, signed.text, signed.cls);
+      };
+
+      renderOldTaxRow("license", oldCarLicenseDelta, "牌照稅", "0");
+      renderOldTaxRow("fuel", oldCarFuelDelta, "燃料費", "0");
+
+      appendTotalRow("舊車小計", formatMoney(oldCarSubtotal));
+      if (!isPickupMode) {
+        appendTotalRow("新車小計 - 舊車小計 = 最後結果", formatMoney(grand));
+      }
+    } else {
+      appendTotalRow("最後結果", formatMoney(grand));
+    }
 
     save();
   }
@@ -919,6 +1220,65 @@ function confirmCarTaxGift() {
     recompute();
   });
 
+  [dealSegSell, dealSegBuy].forEach((btn) => {
+    if (!btn) return;
+    btn.addEventListener("click", () => {
+      const t = btn.getAttribute("data-deal");
+      if (t === "sell" || t === "buy") setDealType(t);
+    });
+  });
+
+  if (usedCarEnabledEl && usedCarInputsWrap) {
+    usedCarEnabledEl.addEventListener("change", () => {
+      if (!state.usedCar) return;
+      state.usedCar.enabled = usedCarEnabledEl.checked;
+      if (!state.usedCar.enabled) {
+        usedCarInputsWrap.style.display = "none";
+      } else {
+        usedCarInputsWrap.style.display = "";
+      }
+      recompute();
+    });
+  }
+
+  if (usedCarAmountInput) {
+    usedCarAmountInput.addEventListener("input", () => {
+      if (!state.usedCar) return;
+      state.usedCar.amount = parseMoney(usedCarAmountInput.value);
+      recompute();
+    });
+  }
+
+  const hideUsedCarGiftHint = () => {
+    if (!usedCarGiftHintEl) return;
+    usedCarGiftHintEl.style.display = "none";
+    usedCarGiftHintEl.textContent = "";
+  };
+
+  if (usedCarLicenseTaxDeltaInput) {
+    usedCarLicenseTaxDeltaInput.addEventListener("input", () => {
+      if (!state.usedCar) return;
+      const rawVal = usedCarLicenseTaxDeltaInput.value;
+      const parsedVal = parseMoney(rawVal);
+      state.usedCar.licenseTaxDelta = parsedVal;
+      state.usedCar.gifted = false; // 使用者手動改值，視為贈送提示不再可信
+      hideUsedCarGiftHint();
+      recompute();
+    });
+  }
+
+  if (usedCarFuelTaxDeltaInput) {
+    usedCarFuelTaxDeltaInput.addEventListener("input", () => {
+      if (!state.usedCar) return;
+      const rawVal = usedCarFuelTaxDeltaInput.value;
+      const parsedVal = parseMoney(rawVal);
+      state.usedCar.fuelTaxDelta = parsedVal;
+      state.usedCar.gifted = false; // 使用者手動改值，視為贈送提示不再可信
+      hideUsedCarGiftHint();
+      recompute();
+    });
+  }
+
   addDeductionBtn.addEventListener("click", openAddDeductionModal);
   addAdditionBtn.addEventListener("click", openAddAdditionModal);
 
@@ -1018,9 +1378,63 @@ function confirmCarTaxGift() {
     });
   }
 
+  function syncDealSegmentUI() {
+    const isSell = state.dealType === "sell";
+    if (dealSegSell) {
+      dealSegSell.classList.toggle("deal-segment--active", isSell);
+      dealSegSell.setAttribute("aria-pressed", isSell ? "true" : "false");
+    }
+    if (dealSegBuy) {
+      dealSegBuy.classList.toggle("deal-segment--active", !isSell);
+      dealSegBuy.setAttribute("aria-pressed", !isSell ? "true" : "false");
+    }
+  }
+
+  function setDealType(type) {
+    if (type !== "sell" && type !== "buy") return;
+    state.dealType = type;
+    syncDealSegmentUI();
+    recompute();
+  }
+
+  function syncUsedCarUIFromState() {
+    if (!usedCarEnabledEl || !usedCarInputsWrap) return;
+    const enabled = Boolean(state.usedCar?.enabled);
+    usedCarEnabledEl.checked = enabled;
+    usedCarInputsWrap.style.display = enabled ? "" : "none";
+
+    if (usedCarAmountInput) usedCarAmountInput.value = String(state.usedCar?.amount ?? 0);
+    if (usedCarLicenseTaxDeltaInput)
+      usedCarLicenseTaxDeltaInput.value = String(state.usedCar?.licenseTaxDelta ?? 0);
+    if (usedCarFuelTaxDeltaInput)
+      usedCarFuelTaxDeltaInput.value = String(state.usedCar?.fuelTaxDelta ?? 0);
+
+    if (usedCarGiftHintEl) {
+      if (state.usedCar?.gifted) {
+        const parts = [];
+        if (Number(state.usedCar?.licenseTaxDelta ?? 0) === 0) parts.push("牌照稅");
+        if (Number(state.usedCar?.fuelTaxDelta ?? 0) === 0) parts.push("燃料費");
+        if (parts.length === 0) {
+          usedCarGiftHintEl.style.display = "none";
+          usedCarGiftHintEl.textContent = "";
+        } else {
+          usedCarGiftHintEl.textContent = `贈送已套用：${parts.join("、")}（未繳部分歸零）`;
+          usedCarGiftHintEl.style.display = "";
+        }
+      } else {
+        usedCarGiftHintEl.style.display = "none";
+        usedCarGiftHintEl.textContent = "";
+      }
+    }
+  }
+
   function init() {
     load();
+    // 移除「收車」按鈕後，統一固定為「賣車」以避免 localStorage 還原造成顯示錯誤
+    state.dealType = "sell";
+    syncDealSegmentUI();
     basePriceInput.value = String(state.basePrice);
+    syncUsedCarUIFromState();
     renderList("deduction");
     renderList("addition");
     recompute();
@@ -1061,6 +1475,8 @@ function confirmCarTaxGift() {
       const topY = 80;
       // 稍微放寬文字區域，讓一行可以塞多一點字
       const maxLabelWidth = 200; 
+      // 總計列字體較大，保留更大右側金額空間，避免文字撞到金額
+      const maxTotalLabelWidth = 170;
       const h3 = document.querySelector(".breakdown-title");
       const title = (h3?.textContent || "明細").trim();
       
@@ -1069,6 +1485,7 @@ function confirmCarTaxGift() {
       // 1. 預先計算總高度與每一列需要的高度
       const dummyCanvas = document.createElement("canvas");
       const dummyCtx = dummyCanvas.getContext("2d");
+
       let heightCss = topY;
       const rowHeights = [];
       const rowLines = [];
@@ -1083,9 +1500,17 @@ function confirmCarTaxGift() {
           rowHeights.push(35);
           rowLines.push([]);
         } else if (el.classList.contains("detail-total-row")) {
-          heightCss += 70;
-          rowHeights.push(70);
-          rowLines.push([]);
+          // 總計列也做動態折行，避免長標籤與右側金額重疊
+          const labelEl = el.querySelector(".detail-label");
+          const labelText = (labelEl?.textContent || "").trim();
+          dummyCtx.font = "800 20px Microsoft JhengHei, Segoe UI, Arial, sans-serif";
+          const lines = splitTextIntoLines(dummyCtx, labelText, maxTotalLabelWidth);
+          const lineCount = Math.max(1, lines.length);
+          const h = 26 + (lineCount * 28);
+
+          heightCss += h;
+          rowHeights.push(h);
+          rowLines.push(lines);
         } else {
           // 一般明細列：動態計算折行次數來決定高度
           const labelEl = el.querySelector(".detail-label");
@@ -1149,6 +1574,9 @@ function confirmCarTaxGift() {
           continue;
         }
         if (el.classList.contains("detail-group-title")) {
+          // 上一列若為明細/總計，金額會把 textAlign 設成 right；區塊標題必須左對齊，否則 fillText(leftX) 會以右緣對齊到 leftX，文字向左溢出，左邊只會看到尾端（例如「小計」）。
+          ctx.textAlign = "left";
+          ctx.textBaseline = "top";
           ctx.fillStyle = COLOR_MUTED;
           ctx.font = "800 16px Microsoft JhengHei, Segoe UI, Arial, sans-serif";
           ctx.fillText(el.textContent.trim(), leftX, y);
@@ -1168,13 +1596,14 @@ function confirmCarTaxGift() {
         ctx.font = `800 ${labelFontSize}px Microsoft JhengHei, Segoe UI, Arial, sans-serif`;
         
         if (isTotal) {
-           const labelEl = el.querySelector(".detail-label");
-           ctx.fillText((labelEl?.textContent || "").trim(), leftX, y + 5);
+          for (let j = 0; j < lines.length; j++) {
+            ctx.fillText(lines[j], leftX, y + 5 + j * 28);
+          }
         } else {
-           // 根據算好的陣列一行一行畫出來
-           for (let j = 0; j < lines.length; j++) {
-             ctx.fillText(lines[j], leftX, y + 5 + j * 24);
-           }
+          // 根據算好的陣列一行一行畫出來
+          for (let j = 0; j < lines.length; j++) {
+            ctx.fillText(lines[j], leftX, y + 5 + j * 24);
+          }
         }
         
         ctx.textAlign = "right";
@@ -1197,7 +1626,26 @@ function confirmCarTaxGift() {
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
       a.href = url;
-      a.download = "car-price-detail.jpg";
+      // 1. 取得當天的 年_月_日 為了JPG命名
+      const today = new Date();
+      const yyyy = today.getFullYear();
+      const mm = String(today.getMonth() + 1).padStart(2, '0');
+      const dd = String(today.getDate()).padStart(2, '0');
+      const dateStr = `${yyyy}_${mm}_${dd}`;
+
+      // 2. 嘗試取得車牌號碼 (從最新辨識或修改的 OCR 資料中抓取)
+      let plateStr = "";
+      // 檢查 latestOcrData 是否存在，並且有「牌照號碼」的資料
+      if (typeof latestOcrData !== 'undefined' && latestOcrData !== null && latestOcrData["牌照號碼"]) {
+        const val = latestOcrData["牌照號碼"].trim();
+        // 如果有抓到車牌，且不是預設的「手動確認」，就加上去
+        if (val !== "" && val !== "手動確認") {
+          plateStr = `_${val}`;
+        }
+      }
+
+      // 3. 組合最終檔名：如果有車牌就會是 2026_03_22_BUB-3670.jpg，沒有就是 2026_03_22.jpg
+      a.download = `${dateStr}${plateStr}.jpg`;
       a.click();
       setTimeout(() => URL.revokeObjectURL(url), 1000);
     } catch (e) {
