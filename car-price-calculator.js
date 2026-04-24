@@ -1705,7 +1705,7 @@ function confirmCarTaxGift() {
   const regInfoGrid = $("regInfoGrid");
 
   // ⚠️ 將你剛才複製的 API 金鑰貼到這裡
-  const GOOGLE_VISION_API_KEY = "AIzaSyANbobFiUJjqmByVhCNiTvmeb8sQIf_smU"; 
+  const GOOGLE_VISION_API_KEY = ""; 
 
   if (uploadRegBtn && uploadRegInput) {
     uploadRegBtn.addEventListener("click", () => {
